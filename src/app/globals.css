@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --neon-cyan: #22d3ee;
+  --neon-purple: #a855f7;
+  --neon-amber: #f59e0b;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #030712;
+  color: #e2e8f0;
+}
+
+h1, h2, h3, h4, p, span, li, label, a {
+  color: inherit;
+}
+
+/* Animations */
+@keyframes spin-slow    { to { transform: rotate(360deg); } }
+@keyframes spin-reverse { to { transform: rotate(-360deg); } }
+@keyframes pulse-glow {
+  0%, 100% { text-shadow: 0 0 12px var(--neon-cyan), 0 0 24px var(--neon-cyan); }
+  50%       { text-shadow: 0 0 24px var(--neon-cyan), 0 0 48px var(--neon-cyan); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-spin-slow    { animation: spin-slow 10s linear infinite; }
+.animate-spin-reverse { animation: spin-reverse 7s linear infinite; }
+.animate-pulse-glow   { animation: pulse-glow 2.5s ease-in-out infinite; }
+.animate-float        { animation: float 4s ease-in-out infinite; }
+.animate-fade-in      { animation: fade-in 0.3s ease-out both; }
+
+/* Reusable design tokens */
+.card {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 1rem;
+}
+
+.card-cyan {
+  border-color: rgba(34, 211, 238, 0.2);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.06);
+}
+
+.card-purple {
+  border-color: rgba(168, 85, 247, 0.2);
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.06);
+}
+
+.input-base {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: #f1f5f9;
+  width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.input-base::placeholder { color: rgba(148, 163, 184, 0.7); }
+.input-base option { background: #0f172a; color: #f1f5f9; }
+.input-base:focus {
+  border-color: rgba(34, 211, 238, 0.5);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.08);
+}
+
+.btn-primary {
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  color: #67e8f9;
+  font-weight: 700;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-primary:hover:not(:disabled) {
+  background: rgba(34, 211, 238, 0.2);
+  border-color: rgba(34, 211, 238, 0.6);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.15);
+}
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(156, 163, 175, 1);
+  font-weight: 600;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.08); color: white; }
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: rgba(252, 165, 165, 1);
+  font-weight: 600;
+  padding: 0.375rem 0.875rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  cursor: pointer;
+  font-size: 0.8125rem;
+}
+.btn-danger:hover { background: rgba(239, 68, 68, 0.16); border-color: rgba(239, 68, 68, 0.5); }
+
+.btn-warning {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  color: rgba(252, 211, 77, 1);
+  font-weight: 600;
+  padding: 0.375rem 0.875rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  cursor: pointer;
+  font-size: 0.8125rem;
+}
+.btn-warning:hover { background: rgba(245, 158, 11, 0.16); border-color: rgba(245, 158, 11, 0.5); }
+
+.section-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(203, 213, 225, 0.75);
+  margin-bottom: 0.75rem;
+}
+
+.divider-cyan {
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(34, 211, 238, 0.4), transparent);
+  margin: 0.5rem 0;
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.page-wrapper {
+  min-height: calc(100vh - 65px);
+  padding: 2.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page-content {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
