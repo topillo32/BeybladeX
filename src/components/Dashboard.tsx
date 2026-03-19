@@ -51,7 +51,7 @@ const Dashboard = () => {
                 setCurrentTournament({ id: doc.id, ...doc.data() } as Tournament);
             }
         });
-        return () => unsub();
+        return () => unsub(); 
     }
   }, [selectedTournamentId]);
 
