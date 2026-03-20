@@ -11,8 +11,8 @@ service cloud.firestore {
 
     // ── Users ─────────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read:   if isAuth();
-      allow create: if isAuth() && uid() == userId;  // new user, no role doc yet
+      allow read:   if true;  // needed for displayName uniqueness check before login
+      allow create: if isAuth() && uid() == userId;
       allow update: if uid() == userId || isAdmin();
       allow delete: if isAdmin();
     }

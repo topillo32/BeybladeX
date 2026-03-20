@@ -69,7 +69,7 @@ export default function AuthPage() {
         router.push("/player/tournaments");
       }
     } catch (err: any) {
-      // Map Firebase error codes to readable messages
+      console.error("Auth error:", err);
       const code = err?.code ?? "";
       if (code === "auth/email-already-in-use")
         setFieldErrors((prev) => ({ ...prev, email: "Este correo ya está registrado" }));
@@ -78,7 +78,7 @@ export default function AuthPage() {
       else if (code === "auth/wrong-password" || code === "auth/invalid-credential")
         setError("Correo o contraseña incorrectos");
       else
-        setError(err.message ?? t("authFailed"));
+        setError(`[${code}] ${err.message ?? t("authFailed")}`);
     } finally {
       setLoading(false);
     }

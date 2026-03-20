@@ -23,7 +23,10 @@ export const registerUser = async (
   role: UserRole = "player"
 ): Promise<string> => {
   const { user } = await createUserWithEmailAndPassword(auth, email, password);
+  await user.getIdToken(true); // force token refresh so Firestore rules see auth
+  console.log("[register] auth created:", user.uid);
   await updateProfile(user, { displayName });
+  console.log("[register] profile updated");
   await setDoc(doc(db, "users", user.uid), {
     uid: user.uid,
     email,
@@ -31,17 +34,17 @@ export const registerUser = async (
     role,
     createdAt: serverTimestamp(),
   });
+  console.log("[register] users doc created");
   if (role === "player") {
-    // Check if admin already created a player with this exact name (case-insensitive)
     const existing = await getDocs(
       query(collection(db, "players"), where("name", "==", displayName))
     );
+    console.log("[register] players query done, found:", existing.size);
     const unlinked = existing.docs.find((d) => !d.data().userId);
     if (unlinked) {
-      // Link the existing player profile to this user account
       await updateDoc(unlinked.ref, { userId: user.uid });
+      console.log("[register] linked existing player");
     } else {
-      // No pre-existing profile — create a fresh one
       await setDoc(doc(db, "players", user.uid), {
         name: displayName,
         userId: user.uid,
@@ -49,6 +52,7 @@ export const registerUser = async (
         pendingTournamentIds: [],
         createdAt: serverTimestamp(),
       });
+      console.log("[register] new player doc created");
     }
   }
   return user.uid;
