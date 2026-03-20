@@ -96,7 +96,6 @@ export const usePlayers = (tournamentId?: string) => {
     return onSnapshot(q,
       (snap) => {
         const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player));
-        // Sort client-side to avoid needing a composite index
         if (!tournamentId) list.sort((a, b) => a.name.localeCompare(b.name));
         setPlayers(list);
         setLoading(false);
@@ -111,7 +110,6 @@ export const usePlayers = (tournamentId?: string) => {
   return { players, loading };
 };
 
-/** All players NOT yet enrolled (approved or pending) in a tournament — for the enroll panel */
 export const useUnenrolledPlayers = (tournamentId: string) => {
   const [players, setPlayers] = useState<Player[]>([]);
 
@@ -135,7 +133,6 @@ export const useUnenrolledPlayers = (tournamentId: string) => {
   return { players };
 };
 
-/** Players with pending enrollment in a tournament */
 export const usePendingPlayers = (tournamentId: string) => {
   const [players, setPlayers] = useState<Player[]>([]);
 
