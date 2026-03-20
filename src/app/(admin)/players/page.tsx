@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useState } from "react";
 import { usePlayers } from "@/hooks/useTournament";
 import { createPlayer, deletePlayer } from "@/services/playerService";

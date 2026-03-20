@@ -1,4 +1,4 @@
-// File: C:\Users\Edgardo Bello\Documents\BeybladeX\src\app\(admin)\tournaments\page.tsx
+// File: c:\Users\Edgardo Bello\Documents\BeybladeX\src\app\(admin)\tournaments\page.tsx
 import * as entry from '../../../../../src/app/(admin)/tournaments/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

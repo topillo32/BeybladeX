@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{\"services\\\\groupService.ts -> firebase/firestore\":{\"id\":\"services\\\\groupService.ts -> firebase/firestore\",\"files\":[]},\"services\\\\matchService.ts -> firebase/firestore\":{\"id\":\"services\\\\matchService.ts -> firebase/firestore\",\"files\":[]}}"
+self.__REACT_LOADABLE_MANIFEST='{"services\\\\groupService.ts -> firebase/firestore":{"id":9842,"files":[]},"services\\\\matchService.ts -> firebase/firestore":{"id":9842,"files":[]}}';

@@ -1,7 +1,19 @@
 {
-  "/(admin)/tournaments/[tournamentId]/page": "app/(admin)/tournaments/[tournamentId]/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/judge/[tournamentId]/[matchId]/page": "app/judge/[tournamentId]/[matchId]/page.js",
+  "/auth/page": "app/auth/page.js",
+  "/page": "app/page.js",
+  "/(admin)/leagues/[leagueId]/page": "app/(admin)/leagues/[leagueId]/page.js",
   "/(admin)/dashboard/page": "app/(admin)/dashboard/page.js",
-  "/(admin)/leagues/page": "app/(admin)/leagues/page.js",
+  "/(admin)/tournaments/[tournamentId]/page": "app/(admin)/tournaments/[tournamentId]/page.js",
   "/(admin)/tournaments/page": "app/(admin)/tournaments/page.js",
-  "/(admin)/leagues/[leagueId]/page": "app/(admin)/leagues/[leagueId]/page.js"
+  "/(admin)/leagues/page": "app/(admin)/leagues/page.js",
+  "/(admin)/players/page": "app/(admin)/players/page.js",
+  "/(admin)/users/page": "app/(admin)/users/page.js",
+  "/(player)/player/leagues/[leagueId]/page": "app/(player)/player/leagues/[leagueId]/page.js",
+  "/(player)/player/tournaments/[tournamentId]/page": "app/(player)/player/tournaments/[tournamentId]/page.js",
+  "/(player)/player/tournaments/page": "app/(player)/player/tournaments/page.js",
+  "/(player)/player/leagues/page": "app/(player)/player/leagues/page.js",
+  "/(public)/t/page": "app/(public)/t/page.js",
+  "/(public)/t/[tournamentId]/page": "app/(public)/t/[tournamentId]/page.js"
 }

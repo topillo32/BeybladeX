@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useTournaments, usePlayers } from "@/hooks/useTournament";
