@@ -12,16 +12,16 @@ service cloud.firestore {
     // ── Users ─────────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read:   if isAuth();
-      allow create: if isAuth() && uid() == userId;
-      allow update: if isAdmin() || uid() == userId;
+      allow create: if isAuth() && uid() == userId;  // new user, no role doc yet
+      allow update: if uid() == userId || isAdmin();
       allow delete: if isAdmin();
     }
 
     // ── Players ───────────────────────────────────────────────────────────────
     match /players/{playerId} {
       allow read:   if isAuth();
-      allow create: if isStaff() || (isAuth() && uid() == playerId);
-      allow update: if isStaff() || (isAuth() && uid() == playerId);
+      allow create: if isAuth();  // user creates own player on register
+      allow update: if isAuth();  // linking existing player also needs auth only
       allow delete: if isAdmin();
     }
 
