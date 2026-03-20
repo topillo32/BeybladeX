@@ -49,7 +49,7 @@ export const computeGroupStandings = (
 
   map.forEach((e) => { e.diff = e.pointsFor - e.pointsAgainst; });
 
-  return [...map.values()].sort((a, b) =>
+  return Array.from(map.values()).sort((a, b) =>
     b.wins !== a.wins ? b.wins - a.wins : b.pointsFor - a.pointsFor
   );
 };
