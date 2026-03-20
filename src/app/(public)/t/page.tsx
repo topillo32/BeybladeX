@@ -15,7 +15,7 @@ export default function PublicTournamentsPage() {
       <div className="w-full max-w-2xl space-y-6">
         <div className="text-center">
           <h1 className="font-gaming text-3xl font-black tracking-widest text-white">
-            BEYBLADE<span className="text-cyan-400">X</span>
+            BEYBLADE<span className="text-cyan-400">X</span> PAC
           </h1>
           <p className="text-gray-400 text-sm mt-1">{t("tournamentManager")}</p>
           <div className="divider-cyan mt-3" />

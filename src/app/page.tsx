@@ -39,7 +39,7 @@ export default function RootPage() {
 
         <div className="space-y-2">
           <h1 className="font-gaming text-5xl md:text-6xl font-black tracking-widest animate-pulse-glow">
-            BEYBLADE<span className="text-cyan-400">X</span>
+            BEYBLADE<span className="text-cyan-400">X</span> PAC
           </h1>
           <p className="text-gray-400 text-sm tracking-[0.3em] uppercase font-medium">{t("tournamentManager")}</p>
         </div>

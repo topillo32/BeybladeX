@@ -97,7 +97,7 @@ export default function AuthPage() {
             <div className="absolute inset-0 flex items-center justify-center text-3xl">🌀</div>
           </div>
           <h1 className="font-gaming text-2xl font-black tracking-widest animate-pulse-glow">
-            BEYBLADE<span className="text-cyan-400">X</span>
+            BEYBLADE<span className="text-cyan-400">X</span> PAC
           </h1>
           <p className="text-gray-400 text-sm">{t("tournamentManager")}</p>
         </div>

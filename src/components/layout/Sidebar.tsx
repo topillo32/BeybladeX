@@ -20,6 +20,7 @@ export const Sidebar = () => {
     { href: "/tournaments", label: t("tournaments"), icon: "🏆" },
     { href: "/leagues",     label: t("leagues"),     icon: "🏅" },
     { href: "/players",     label: t("players"),     icon: "👤" },
+    { href: "/parts",       label: "Piezas",         icon: "⚙️" },
     { href: "/users",       label: t("users"),       icon: "🛡️" },
   ];
   const NAV_STAFF = [
@@ -27,10 +28,12 @@ export const Sidebar = () => {
     { href: "/tournaments", label: t("tournaments"), icon: "🏆" },
     { href: "/leagues",     label: t("leagues"),     icon: "🏅" },
     { href: "/players",     label: t("players"),     icon: "👤" },
+    { href: "/parts",       label: "Piezas",         icon: "⚙️" },
   ];
   const NAV_PLAYER = [
     { href: "/player/tournaments", label: t("availableTournaments"), icon: "🏆" },
     { href: "/player/leagues",     label: t("myLeagues"),           icon: "🏅" },
+    { href: "/player/combos",      label: "Mis Combos",             icon: "🌀" },
   ];
 
   const nav = isAdmin ? NAV_ADMIN : user?.role === "staff" ? NAV_STAFF : NAV_PLAYER;
@@ -51,7 +54,7 @@ export const Sidebar = () => {
         </div>
         {!collapsed && (
           <span className="font-gaming font-bold tracking-widest text-sm text-white">
-            BEYBLADE<span className="text-cyan-400">X</span>
+            BEYBLADE<span className="text-cyan-400">X</span> PAC
           </span>
         )}
         <button onClick={() => setCollapsed(!collapsed)} className="ml-auto text-gray-500 hover:text-white transition-colors text-xs">

@@ -8,8 +8,8 @@ import "./globals.css";
 const orbitron = Orbitron({ subsets: ["latin"], variable: "--font-orbitron" });
 
 export const metadata: Metadata = {
-  title: "Beyblade X Tourney",
-  description: "Gestor de Torneos Beyblade X",
+  title: "Beyblade X PAC",
+  description: "Gestor de Torneos Beyblade X PAC",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

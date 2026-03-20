@@ -9,7 +9,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           <Link href="/" className="flex items-center gap-2">
             <span className="text-lg">🌀</span>
             <span className="font-gaming font-bold tracking-widest text-sm text-white">
-              BEYBLADE<span className="text-cyan-400">X</span>
+              BEYBLADE<span className="text-cyan-400">X</span> PAC
             </span>
           </Link>
           <Link href="/auth" className="btn-primary text-xs font-gaming tracking-wider py-2 px-4">

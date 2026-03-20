@@ -1,9 +1,14 @@
 {
   "pages": {
-    "/page": [
+    "/(admin)/tournaments/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/chunks/app/(admin)/tournaments/page.js"
+    ],
+    "/(admin)/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/layout.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -11,30 +16,15 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/(admin)/dashboard/page": [
+    "/(admin)/tournaments/[tournamentId]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/dashboard/page.js"
+      "static/chunks/app/(admin)/tournaments/[tournamentId]/page.js"
     ],
-    "/(admin)/layout": [
+    "/(admin)/parts/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/layout.js"
-    ],
-    "/auth/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/auth/page.js"
-    ],
-    "/(player)/player/tournaments/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(player)/player/tournaments/page.js"
-    ],
-    "/(player)/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(player)/layout.js"
+      "static/chunks/app/(admin)/parts/page.js"
     ]
   }
 }
