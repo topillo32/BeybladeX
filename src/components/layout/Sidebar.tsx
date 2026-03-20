@@ -18,11 +18,19 @@ export const Sidebar = () => {
   const NAV_ADMIN = [
     { href: "/dashboard",   label: t("dashboard"),   icon: "📊" },
     { href: "/tournaments", label: t("tournaments"), icon: "🏆" },
+    { href: "/leagues",     label: t("leagues"),     icon: "🏅" },
+    { href: "/players",     label: t("players"),     icon: "👤" },
+    { href: "/users",       label: t("users"),       icon: "🛡️" },
+  ];
+  const NAV_STAFF = [
+    { href: "/dashboard",   label: t("dashboard"),   icon: "📊" },
+    { href: "/tournaments", label: t("tournaments"), icon: "🏆" },
+    { href: "/leagues",     label: t("leagues"),     icon: "🏅" },
     { href: "/players",     label: t("players"),     icon: "👤" },
   ];
-  const NAV_STAFF = NAV_ADMIN;
   const NAV_PLAYER = [
     { href: "/player/tournaments", label: t("availableTournaments"), icon: "🏆" },
+    { href: "/player/leagues",     label: t("myLeagues"),           icon: "🏅" },
   ];
 
   const nav = isAdmin ? NAV_ADMIN : user?.role === "staff" ? NAV_STAFF : NAV_PLAYER;

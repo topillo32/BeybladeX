@@ -182,7 +182,9 @@ export const updateMatchScore = async (
   tournamentId: string,
   matchId: string,
   playerId: string,
-  finishType: FinishType
+  finishType: FinishType,
+  callerUid: string,
+  isAdmin: boolean
 ) => {
   const matchRef = doc(db, "tournaments", tournamentId, "matches", matchId);
   const { points, name } = FT[finishType];
@@ -192,6 +194,19 @@ export const updateMatchScore = async (
     if (!snap.exists()) throw new Error("Match not found.");
     const data = snap.data() as Omit<Match, "id">;
     if (data.isFinished) return;
+
+    // Validate judge for group matches
+    if (data.phase === "GROUP" && data.groupId) {
+      const { getDoc: gd } = await import("firebase/firestore");
+      const groupSnap = await gd(doc(db, "tournaments", tournamentId, "groups", data.groupId));
+      if (groupSnap.exists()) {
+        const groupData = groupSnap.data();
+        const judgeId = groupData.judgeId;
+        if (judgeId && callerUid !== judgeId && !isAdmin) {
+          throw new Error("NOT_JUDGE");
+        }
+      }
+    }
 
     const isA = data.playerA.id === playerId;
     const field = isA ? "playerAScore" : "playerBScore";

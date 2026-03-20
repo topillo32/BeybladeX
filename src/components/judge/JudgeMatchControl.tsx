@@ -66,7 +66,7 @@ export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
   const handleScore = async (playerId: string, finishType: FinishType) => {
     if (isSubmitting || match?.isFinished) return;
     setIsSubmitting(true);
-    try { await updateMatchScore(tournamentId, matchId, playerId, finishType); }
+    try { await updateMatchScore(tournamentId, matchId, playerId, finishType, "", false); }
     catch (err) { console.error(err); }
     finally { setIsSubmitting(false); }
   };

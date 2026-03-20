@@ -8,6 +8,8 @@ interface Props {
   matches: Match[];
   tournamentId?: string;
   editable?: boolean;
+  callerUid?: string;
+  isAdmin?: boolean;
 }
 
 const PHASE_ORDER = ["ROUND_OF_64", "ROUND_OF_32", "ROUND_OF_16", "QUARTERFINAL", "SEMIFINAL", "THIRD_PLACE", "FINAL"];
@@ -31,7 +33,7 @@ const FINISH_STYLES: Record<FinishType, string> = {
   XTREME: "border-red-500/30 text-red-300 bg-red-500/10 hover:bg-red-500/20",
 };
 
-export const BracketView = ({ matches, tournamentId, editable }: Props) => {
+export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmin }: Props) => {
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [advancing, setAdvancing] = useState(false);
@@ -48,7 +50,7 @@ export const BracketView = ({ matches, tournamentId, editable }: Props) => {
   const handleScore = async (playerId: string, ft: FinishType) => {
     if (!liveMatch || submitting) return;
     setSubmitting(true);
-    try { await updateMatchScore(tournamentId!, liveMatch.id, playerId, ft); }
+    try { await updateMatchScore(tournamentId!, liveMatch.id, playerId, ft, callerUid!, !!isAdmin); }
     finally { setSubmitting(false); }
   };
 

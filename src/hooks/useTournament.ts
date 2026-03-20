@@ -36,6 +36,23 @@ export const useTournaments = () => {
   return { tournaments, loading };
 };
 
+export const useLeagues = () => {
+  const [leagues, setLeagues] = useState<import("@/types").League[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    return onSnapshot(
+      query(collection(db, "leagues"), orderBy("createdAt", "desc")),
+      (snap) => {
+        setLeagues(snap.docs.map((d) => ({ id: d.id, ...d.data() } as import("@/types").League)));
+        setLoading(false);
+      }
+    );
+  }, []);
+
+  return { leagues, loading };
+};
+
 export const useGroups = (tournamentId: string) => {
   const [groups, setGroups] = useState<TournamentGroup[]>([]);
 
@@ -75,10 +92,13 @@ export const usePlayers = (tournamentId?: string) => {
   useEffect(() => {
     const q = tournamentId
       ? query(collection(db, "players"), where("tournamentIds", "array-contains", tournamentId))
-      : query(collection(db, "players"), orderBy("createdAt", "desc"));
+      : query(collection(db, "players"));
     return onSnapshot(q,
       (snap) => {
-        setPlayers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player)));
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player));
+        // Sort client-side to avoid needing a composite index
+        if (!tournamentId) list.sort((a, b) => a.name.localeCompare(b.name));
+        setPlayers(list);
         setLoading(false);
       },
       (err) => {
@@ -98,16 +118,16 @@ export const useUnenrolledPlayers = (tournamentId: string) => {
   useEffect(() => {
     if (!tournamentId) return;
     return onSnapshot(
-      query(collection(db, "players"), orderBy("createdAt", "desc")),
+      query(collection(db, "players")),
       (snap) => {
         const all = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player));
-        setPlayers(
-          all.filter(
-            (p) =>
-              !(p.tournamentIds ?? []).includes(tournamentId) &&
-              !(p.pendingTournamentIds ?? []).includes(tournamentId)
-          )
+        const filtered = all.filter(
+          (p) =>
+            !(p.tournamentIds ?? []).includes(tournamentId) &&
+            !(p.pendingTournamentIds ?? []).includes(tournamentId)
         );
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        setPlayers(filtered);
       }
     );
   }, [tournamentId]);

@@ -7,6 +7,12 @@ import type { Player, TournamentGroup } from "@/types";
 
 const groupsCol = (tId: string) => collection(db, "tournaments", tId, "groups");
 
+export const assignJudge = async (tId: string, gId: string, judgeId: string, judgeName: string) =>
+  updateDoc(doc(db, "tournaments", tId, "groups", gId), { judgeId, judgeName });
+
+export const removeJudge = async (tId: string, gId: string) =>
+  updateDoc(doc(db, "tournaments", tId, "groups", gId), { judgeId: null, judgeName: null });
+
 export const getGroups = async (tournamentId: string): Promise<TournamentGroup[]> => {
   const snap = await getDocs(groupsCol(tournamentId));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as TournamentGroup));

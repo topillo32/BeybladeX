@@ -2,32 +2,29 @@
 import Link from "next/link";
 import { useTournaments } from "@/hooks/useTournament";
 import { StatusBadge } from "@/components/ui/Badges";
+import { Spinner } from "@/components/ui/Spinner";
+import { useLang } from "@/lib/LangContext";
 
 export default function PublicTournamentsPage() {
   const { tournaments, loading } = useTournaments();
+  const { t } = useLang();
   const active = tournaments.filter((t) => t.status !== "DRAFT");
 
   return (
     <div className="page-wrapper">
       <div className="w-full max-w-2xl space-y-6">
         <div className="text-center">
-          <h1 className="font-gaming text-3xl font-black tracking-widest text-white">Live Tournaments</h1>
-          <p className="text-gray-400 text-sm mt-1">Follow your favorite bladers in real time</p>
+          <h1 className="font-gaming text-3xl font-black tracking-widest text-white">
+            BEYBLADE<span className="text-cyan-400">X</span>
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">{t("tournamentManager")}</p>
           <div className="divider-cyan mt-3" />
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="relative w-10 h-10">
-              <div className="absolute inset-0 rounded-full border-2 border-cyan-400/40 animate-spin-slow" />
-              <div className="absolute inset-1.5 rounded-full border border-purple-400/40 animate-spin-reverse" />
-            </div>
-          </div>
-        ) : active.length === 0 ? (
+        {loading ? <Spinner size={10} /> : active.length === 0 ? (
           <div className="card p-10 text-center">
             <p className="text-4xl mb-3">🏆</p>
-            <p className="text-white font-semibold">No active tournaments</p>
-            <p className="text-gray-400 text-sm mt-1">Check back soon!</p>
+            <p className="text-white font-semibold">{t("noTournamentsFound")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -43,6 +40,10 @@ export default function PublicTournamentsPage() {
             ))}
           </div>
         )}
+
+        <p className="text-center text-gray-600 text-xs">
+          <Link href="/auth" className="text-cyan-500 hover:underline">{t("signIn")}</Link>
+        </p>
       </div>
     </div>
   );

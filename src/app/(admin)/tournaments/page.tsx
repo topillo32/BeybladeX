@@ -1,19 +1,22 @@
 "use client";
 import { useState, FormEvent } from "react";
 import Link from "next/link";
-import { useTournaments } from "@/hooks/useTournament";
+import { useTournaments, useLeagues } from "@/hooks/useTournament";
 import { useAuthContext } from "@/lib/AuthContext";
 import { createTournament, deleteTournament } from "@/services/tournamentService";
 import { StatusBadge } from "@/components/ui/Badges";
 import { useLang } from "@/lib/LangContext";
-import type { TournamentStatus } from "@/types";
+import type { TournamentStatus, EventType } from "@/types";
 
 export default function TournamentsPage() {
   const { tournaments, loading } = useTournaments();
+  const { leagues } = useLeagues();
   const { user, isAdmin } = useAuthContext();
   const { t } = useLang();
   const [name, setName] = useState("");
   const [maxPlayers, setMaxPlayers] = useState(16);
+  const [eventType, setEventType] = useState<EventType>("tournament");
+  const [leagueId, setLeagueId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<TournamentStatus | "ALL">("ALL");
@@ -24,8 +27,16 @@ export default function TournamentsPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await createTournament({ name: name.trim(), maxPlayers, playersPerGroup: 4 }, user.uid);
+      await createTournament({
+        name: name.trim(),
+        maxPlayers,
+        playersPerGroup: 4,
+        eventType,
+        ...(eventType === "league_event" && leagueId ? { leagueId } : {}),
+      }, user.uid);
       setName("");
+      setEventType("tournament");
+      setLeagueId("");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -61,8 +72,43 @@ export default function TournamentsPage() {
                 <input type="number" value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))}
                   min={4} max={256} className="input-base text-sm" />
               </div>
+              {/* Event type */}
+              <div className="flex gap-2">
+                {(["tournament", "league_event"] as EventType[]).map((et) => (
+                  <button
+                    key={et}
+                    type="button"
+                    onClick={() => { setEventType(et); if (et === "tournament") setLeagueId(""); }}
+                    className={`flex-1 py-2 rounded-lg font-gaming text-xs tracking-wider border transition-all
+                      ${eventType === et
+                        ? et === "league_event"
+                          ? "bg-purple-500/20 border-purple-500/40 text-purple-300"
+                          : "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
+                        : "bg-white/5 border-white/10 text-gray-500 hover:text-gray-300"}`}
+                  >
+                    {et === "tournament" ? `🏆 ${t("typeTournament")}` : `🏅 ${t("typeLeagueEvent")}`}
+                  </button>
+                ))}
+              </div>
+              {/* League selector */}
+              {eventType === "league_event" && (
+                <div>
+                  <label className="section-title block mb-1">{t("selectLeague")}</label>
+                  <select
+                    value={leagueId}
+                    onChange={(e) => setLeagueId(e.target.value)}
+                    required
+                    className="input-base text-sm"
+                  >
+                    <option value="">{t("selectLeaguePlaceholder")}</option>
+                    {leagues.map((l) => (
+                      <option key={l.id} value={l.id} className="bg-[#050d1a]">{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {error && <p className="text-red-400 text-sm">{error}</p>}
-              <button type="submit" disabled={submitting} className="btn-primary w-full font-gaming text-xs tracking-wider">
+              <button type="submit" disabled={submitting || (eventType === "league_event" && !leagueId)} className="btn-primary w-full font-gaming text-xs tracking-wider disabled:opacity-50">
                 {submitting ? t("creating") : t("createTournament")}
               </button>
             </form>

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useTournament, useGroups, useMatches, usePlayers, usePendingPlayers, useUnenrolledPlayers } from "@/hooks/useTournament";
 import { useAuthContext } from "@/lib/AuthContext";
 import { updateTournament, advanceTournamentStatus } from "@/services/tournamentService";
-import { generateGroups, addPlayerToGroupLiveWithPlayers, fillGroupWithByes, removePlayerFromGroupWithMatches } from "@/services/groupService";
+import { generateGroups, addPlayerToGroupLiveWithPlayers, fillGroupWithByes, removePlayerFromGroupWithMatches, assignJudge, removeJudge } from "@/services/groupService";
 import { generateGroupMatches, generateKnockoutBracket } from "@/services/matchService";
 import { computeGlobalStandings, getQualifiers, computeGroupStandings, autoQualifiersCount } from "@/services/standingsService";
+import { getAllUsers } from "@/services/authService";
 import { TournamentStepper } from "@/components/ui/TournamentStepper";
 import { StatusBadge } from "@/components/ui/Badges";
 import { StandingsTable } from "@/components/standings/StandingsTable";
@@ -15,9 +16,10 @@ import { MatchCard } from "@/components/ui/MatchCard";
 import { Spinner } from "@/components/ui/Spinner";
 import { deleteMatch } from "@/services/matchService";
 import { enrollPlayerInTournament, approvePlayerEnrollment, unenrollPlayerFromTournament } from "@/services/playerService";
-import type { TournamentStatus } from "@/types";
+import type { TournamentStatus, AppUser } from "@/types";
 import { useLang } from "@/lib/LangContext";
 import { OPEN_REGISTRATION_STATUSES as OPEN_REG } from "@/types";
+import { useEffect } from "react";
 
 type Tab = "overview" | "groups" | "matches" | "standings" | "bracket";
 
@@ -34,11 +36,18 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const { players } = usePlayers(tournamentId);
   const { players: pendingPlayers } = usePendingPlayers(tournamentId);
   const { players: unenrolledPlayers } = useUnenrolledPlayers(tournamentId);
-  const { isAdmin, isStaff } = useAuthContext();
+  const { user, isAdmin, isStaff } = useAuthContext();
   const { t } = useLang();
   const [tab, setTab] = useState<Tab>("overview");
   const [working, setWorking] = useState(false);
   const [enrollSearch, setEnrollSearch] = useState("");
+  const [staffUsers, setStaffUsers] = useState<AppUser[]>([]);
+
+  // Load staff/admin users for judge selector
+  useEffect(() => {
+    if (!isAdmin) return;
+    getAllUsers().then((all) => setStaffUsers(all.filter((u) => u.role === "staff" || u.role === "admin")));
+  }, [isAdmin]);
 
   if (loading) return <Spinner size={12} />;
   if (!tournament) return <div className="page-wrapper"><p className="text-gray-400">{t("tournamentNotFound")}</p></div>;
@@ -51,9 +60,6 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const handleAdvance = async () => {
     const next = NEXT_STATUS[tournament.status];
     if (!next) return;
-
-    // remove the old manual validation
-
     setWorking(true);
     try {
       if (next === "GROUP_STAGE") {
@@ -92,6 +98,22 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
     await unenrollPlayerFromTournament(playerId, tournamentId);
   };
 
+  const handleAssignJudge = async (groupId: string, judgeUid: string) => {
+    if (!judgeUid) {
+      await removeJudge(tournamentId, groupId);
+      return;
+    }
+    // Check judge is not a player in this group
+    const group = groups.find((g) => g.id === groupId);
+    const judgeAsPlayer = players.find((p) => p.userId === judgeUid);
+    if (group && judgeAsPlayer && group.playerIds.includes(judgeAsPlayer.id)) {
+      alert(t("judgeCannotBePlayer"));
+      return;
+    }
+    const judgeUser = staffUsers.find((u) => u.uid === judgeUid);
+    if (judgeUser) await assignJudge(tournamentId, groupId, judgeUid, judgeUser.displayName);
+  };
+
   const NEXT_LABEL_T = () => ({
     DRAFT: t("openRegistration"),
     REGISTRATION: t("startGroupStage"),
@@ -119,7 +141,6 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
         </div>
       )}
       <div className={`w-full space-y-6 ${tab === "bracket" ? "" : "max-w-4xl"}`}>
-        {/* Header */}
         <div>
           <Link href="/tournaments" className="text-gray-500 hover:text-cyan-400 text-sm transition-colors">{t("back")}</Link>
           <div className="flex items-center gap-3 mt-2">
@@ -128,12 +149,10 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           </div>
         </div>
 
-        {/* Stepper */}
         <div className="card p-4">
           <TournamentStepper status={tournament.status} />
         </div>
 
-        {/* Pending approvals — GROUP_STAGE only */}
         {isStaff && tournament.status === "GROUP_STAGE" && pendingPlayers.length > 0 && (
           <div className="card p-4 space-y-3 border border-amber-500/30">
             <p className="section-title text-amber-400">⏳ {t("pendingApproval")} ({pendingPlayers.length})</p>
@@ -151,7 +170,6 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           </div>
         )}
 
-        {/* Enroll players panel — visible to staff when registration is open */}
         {isStaff && OPEN_REG.includes(tournament.status) && (
           <div className="card p-4 space-y-3">
             <p className="section-title">➕ {t("addPlayers")}</p>
@@ -179,7 +197,6 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           </div>
         )}
 
-        {/* Qualifiers info — auto-calculated, shown during GROUP_STAGE */}
         {isAdmin && tournament.status === "GROUP_STAGE" && (
           <div className="card card-cyan p-4 flex items-center gap-4">
             <div className="flex-1">
@@ -193,7 +210,6 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           </div>
         )}
 
-        {/* Advance button */}
         {isAdmin && NEXT_STATUS[tournament.status] && (
           <button onClick={handleAdvance} disabled={working}
             className="btn-primary w-full font-gaming text-sm tracking-wider py-3.5">
@@ -201,25 +217,23 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           </button>
         )}
 
-        {/* Tabs */}
         <div className="flex gap-1 p-1 bg-white/5 rounded-xl overflow-x-auto">
-          {TABS.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)}
+          {TABS.map((tb) => (
+            <button key={tb.key} onClick={() => setTab(tb.key)}
               className={`flex-1 py-2.5 rounded-lg font-gaming text-xs tracking-wider whitespace-nowrap transition-all min-w-fit px-2
-                ${tab === t.key ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
-              {t.icon} {t.label}
+                ${tab === tb.key ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
+              {tb.icon} {tb.label}
             </button>
           ))}
         </div>
 
-        {/* Tab content */}
         <div className="animate-fade-in" key={tab}>
           {tab === "overview" && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: t("players"),    value: players.length,                    icon: "👤" },
-                { label: t("groups"),     value: groups.length,                     icon: "👥" },
-                { label: t("matches"),    value: matches.length,                    icon: "⚔️" },
+                { label: t("players"),    value: players.length,    icon: "👤" },
+                { label: t("groups"),     value: groups.length,     icon: "👥" },
+                { label: t("matches"),    value: matches.length,    icon: "⚔️" },
                 { label: t("qualifiers"), value: tournament.status === "GROUP_STAGE" ? autoCount : (tournament.qualifiersCount || t("tbd")), icon: "🏆" },
               ].map((s) => (
                 <div key={s.label} className="card card-cyan p-4 text-center space-y-1">
@@ -245,22 +259,59 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                 const byeCount = g.playerIds.filter((id) => id.startsWith("bye-")).length;
                 const slots = tournament.playersPerGroup - g.playerIds.length;
                 const canFill = isAdmin && slots > 0 && byeCount < 3;
+
+                // Staff eligible to judge this group: not a player in it
+                const eligibleJudges = staffUsers.filter((u) => {
+                  const asPlayer = players.find((p) => p.userId === u.uid);
+                  return !asPlayer || !g.playerIds.includes(asPlayer.id);
+                });
+
                 return (
                   <div key={g.id} className="space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                       <p className="font-gaming text-sm font-bold text-cyan-300 tracking-widest">{g.name}</p>
-                      {canFill && (
-                        <button
-                          onClick={async () => {
-                            setWorking(true);
-                            try { await fillGroupWithByes(tournamentId, g, gPlayers.filter((p) => !p.id.startsWith("bye-"))); }
-                            finally { setWorking(false); }
-                          }}
-                          className="btn-ghost text-xs py-1 px-3 border border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
-                        >
-                          🃏 Rellenar con byes ({slots})
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Judge selector */}
+                        {isAdmin && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 font-gaming">⚖️ {t("judge")}:</span>
+                            <select
+                              value={g.judgeId ?? ""}
+                              onChange={(e) => handleAssignJudge(g.id, e.target.value)}
+                              className="bg-white/5 border border-white/10 text-gray-300 text-xs font-gaming rounded-lg px-2 py-1 outline-none focus:border-cyan-500/50 cursor-pointer"
+                            >
+                              <option value="" className="bg-[#050d1a]">{t("noJudge")}</option>
+                              {eligibleJudges.map((u) => (
+                                <option key={u.uid} value={u.uid} className="bg-[#050d1a]">{u.displayName}</option>
+                              ))}
+                            </select>
+                            {g.judgeId && isAdmin && (
+                              <button
+                                onClick={() => removeJudge(tournamentId, g.id)}
+                                className="text-xs text-red-400 hover:text-red-300 font-gaming"
+                                title={t("removeJudge")}
+                              >✕</button>
+                            )}
+                          </div>
+                        )}
+                        {!isAdmin && g.judgeName && (
+                          <span className="text-xs text-purple-300 font-gaming border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 rounded-full">
+                            ⚖️ {g.judgeName}
+                          </span>
+                        )}
+                        {canFill && (
+                          <button
+                            onClick={async () => {
+                              setWorking(true);
+                              try { await fillGroupWithByes(tournamentId, g, gPlayers.filter((p) => !p.id.startsWith("bye-"))); }
+                              finally { setWorking(false); }
+                            }}
+                            className="btn-ghost text-xs py-1 px-3 border border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                          >
+                            🃏 Rellenar con byes ({slots})
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {isAdmin && (
                       <div className="flex flex-wrap gap-2">
@@ -306,10 +357,21 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 gap-4">
-                  {groupMatches.map((m) => (
-                    <MatchCard key={m.id} match={m} tournamentId={tournamentId} editable={isStaff}
-                      onDelete={isAdmin ? (id) => deleteMatch(tournamentId, id) : undefined} />
-                  ))}
+                  {groupMatches.map((m) => {
+                    const group = groups.find((g) => g.id === m.groupId);
+                    return (
+                      <MatchCard
+                        key={m.id}
+                        match={m}
+                        tournamentId={tournamentId}
+                        editable={isStaff}
+                        judgeId={group?.judgeId}
+                        callerUid={user?.uid}
+                        isAdmin={isAdmin}
+                        onDelete={isAdmin ? (id) => deleteMatch(tournamentId, id) : undefined}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -323,7 +385,13 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           )}
 
           {tab === "bracket" && (
-            <BracketView matches={knockoutMatches} tournamentId={tournamentId} editable={isStaff} />
+            <BracketView
+              matches={knockoutMatches}
+              tournamentId={tournamentId}
+              editable={isStaff}
+              callerUid={user?.uid}
+              isAdmin={isAdmin}
+            />
           )}
         </div>
       </div>

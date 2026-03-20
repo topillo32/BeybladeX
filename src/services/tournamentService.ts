@@ -8,12 +8,12 @@ import type { Tournament, TournamentStatus } from "@/types";
 const col = collection(db, "tournaments");
 
 export const createTournament = async (
-  data: Pick<Tournament, "name" | "maxPlayers" | "playersPerGroup">,
+  data: Pick<Tournament, "name" | "maxPlayers" | "playersPerGroup"> & { eventType: import("@/types").EventType; leagueId?: string },
   uid: string
 ) => {
   await addDoc(col, {
     ...data,
-    qualifiersCount: 0, // calculated at KNOCKOUT time
+    qualifiersCount: 0,
     status: "DRAFT" as TournamentStatus,
     createdBy: uid,
     createdAt: serverTimestamp(),

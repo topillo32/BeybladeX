@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function isAuth()  { return request.auth != null; }
+    function uid()     { return request.auth.uid; }
+    function role()    { return get(/databases/$(database)/documents/users/$(uid())).data.role; }
+    function isAdmin() { return isAuth() && role() == "admin"; }
+    function isStaff() { return isAuth() && (role() == "staff" || role() == "admin"); }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && uid() == userId;
+      allow update: if isAdmin() || uid() == userId;
+      allow delete: if isAdmin();
+    }
+
+    // ── Players ───────────────────────────────────────────────────────────────
+    match /players/{playerId} {
+      allow read:   if isAuth();
+      allow create: if isStaff() || (isAuth() && uid() == playerId);
+      allow update: if isStaff() || (isAuth() && uid() == playerId);
+      allow delete: if isAdmin();
+    }
+
+    // ── Leagues ───────────────────────────────────────────────────────────────
+    match /leagues/{leagueId} {
+      allow read:   if isAuth();
+      allow write:  if isAdmin();
+    }
+
+    // ── Tournaments ───────────────────────────────────────────────────────────
+    match /tournaments/{tournamentId} {
+      allow read:   if true;  // public (used by /t page)
+      allow create: if isStaff();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+
+      // Groups
+      match /groups/{groupId} {
+        allow read:   if true;
+        allow write:  if isStaff();
+      }
+
+      // Matches
+      match /matches/{matchId} {
+        allow read:   if true;
+        // Score updates: staff only (backend validates judge)
+        allow write:  if isStaff();
+      }
+    }
+  }
+}

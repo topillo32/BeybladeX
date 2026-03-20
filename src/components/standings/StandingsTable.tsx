@@ -3,9 +3,10 @@ import type { StandingEntry } from "@/types";
 interface Props {
   standings: StandingEntry[];
   highlightTop?: number;
+  highlightPlayerId?: string;
 }
 
-export const StandingsTable = ({ standings, highlightTop = 2 }: Props) => (
+export const StandingsTable = ({ standings, highlightTop = 2, highlightPlayerId }: Props) => (
   <div className="card overflow-hidden">
     <table className="w-full text-sm">
       <thead>
@@ -22,14 +23,19 @@ export const StandingsTable = ({ standings, highlightTop = 2 }: Props) => (
       <tbody className="divide-y divide-white/5">
         {standings.map((s, i) => {
           const qualified = i < highlightTop;
+          const isMe = s.playerId === highlightPlayerId;
           return (
-            <tr key={s.playerId} className={`transition-colors ${qualified ? "bg-cyan-500/5" : "hover:bg-white/3"}`}>
+            <tr key={s.playerId} className={`transition-colors ${
+              isMe ? "bg-yellow-500/10 border-l-2 border-yellow-400" : qualified ? "bg-cyan-500/5" : "hover:bg-white/3"
+            }`}>
               <td className="px-4 py-3">
                 <span className={`font-gaming text-xs font-bold ${qualified ? "text-cyan-400" : "text-gray-500"}`}>
                   {qualified ? "★" : String(i + 1).padStart(2, "0")}
                 </span>
               </td>
-              <td className="px-4 py-3 font-medium text-white">{s.playerName}</td>
+              <td className={`px-4 py-3 font-medium ${isMe ? "text-yellow-300" : "text-white"}`}>
+                {s.playerName}{isMe && <span className="ml-1.5 text-xs text-yellow-400 font-gaming">← tú</span>}
+              </td>
               <td className="px-4 py-3 text-center text-green-400 font-bold font-gaming">{s.wins}</td>
               <td className="px-4 py-3 text-center text-red-400 font-gaming">{s.losses}</td>
               <td className="px-4 py-3 text-center text-gray-300 font-gaming">{s.pointsFor}</td>

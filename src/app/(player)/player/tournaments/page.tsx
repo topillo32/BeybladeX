@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useTournaments } from "@/hooks/useTournament";
 import { getPlayerByUserId, enrollPlayerInTournament } from "@/services/playerService";
@@ -23,6 +24,13 @@ export default function PlayerTournamentsPage() {
   }, [user]);
 
   const openTournaments = tournaments.filter((t) => OPEN_REG.includes(t.status));
+  const activeTournaments = tournaments.filter(
+    (t) => !OPEN_REG.includes(t.status) && t.status !== "FINISHED" &&
+      player && (player.tournamentIds ?? []).includes(t.id)
+  );
+  const finishedTournaments = tournaments.filter(
+    (t) => t.status === "FINISHED" && player && (player.tournamentIds ?? []).includes(t.id)
+  );
 
   const getMyStatus = (t: Tournament) => {
     if (!player) return null;
@@ -65,6 +73,32 @@ export default function PlayerTournamentsPage() {
           </div>
         )}
 
+        {/* Torneos en curso donde ya está inscripto */}
+        {activeTournaments.length > 0 && (
+          <div className="space-y-3">
+            <p className="section-title">⚔️ En curso</p>
+            <ul className="space-y-3">
+              {activeTournaments.map((tournament) => (
+                <li key={tournament.id} className="card card-cyan p-4 flex items-center gap-4">
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <p className="font-gaming font-bold text-white tracking-wide truncate">{tournament.name}</p>
+                    <StatusBadge status={tournament.status} />
+                  </div>
+                  <Link
+                    href={`/player/tournaments/${tournament.id}`}
+                    className="font-gaming text-xs text-cyan-400 border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-1.5 rounded-lg transition-all shrink-0"
+                  >
+                    👁 {t("view")}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Torneos abiertos a inscripción */}
+        <div className="space-y-3">
+          <p className="section-title">📋 {t("availableTournaments")}</p>
         {openTournaments.length === 0 ? (
           <div className="card p-12 text-center space-y-3">
             <p className="text-4xl">🏆</p>
@@ -88,7 +122,13 @@ export default function PlayerTournamentsPage() {
                     </div>
                   </div>
 
-                  <div className="shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Link
+                      href={`/player/tournaments/${tournament.id}`}
+                      className="font-gaming text-xs text-cyan-400 border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-1.5 rounded-lg transition-all"
+                    >
+                      👁 {t("view")}
+                    </Link>
                     {status === "enrolled" && (
                       <span className="font-gaming text-xs text-green-400 border border-green-500/30 bg-green-500/10 px-3 py-1.5 rounded-lg">
                         {t("alreadyEnrolled")}
@@ -117,6 +157,30 @@ export default function PlayerTournamentsPage() {
               );
             })}
           </ul>
+        )}
+        </div>
+
+        {/* Torneos finalizados donde participó */}
+        {finishedTournaments.length > 0 && (
+          <div className="space-y-3">
+            <p className="section-title">✅ Finalizados</p>
+            <ul className="space-y-3">
+              {finishedTournaments.map((tournament) => (
+                <li key={tournament.id} className="card p-4 flex items-center gap-4 opacity-70">
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <p className="font-gaming font-bold text-white tracking-wide truncate">{tournament.name}</p>
+                    <StatusBadge status={tournament.status} />
+                  </div>
+                  <Link
+                    href={`/player/tournaments/${tournament.id}`}
+                    className="font-gaming text-xs text-gray-400 border border-white/10 hover:text-cyan-400 hover:border-cyan-500/30 px-3 py-1.5 rounded-lg transition-all shrink-0"
+                  >
+                    👁 {t("view")}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </div>

@@ -11,6 +11,25 @@ export interface AppUser {
   createdAt: Timestamp;
 }
 
+// ─── League ───────────────────────────────────────────────────────────────────
+export interface League {
+  id: string;
+  name: string;
+  description?: string;
+  createdBy: string;
+  createdAt: Timestamp;
+}
+
+/** League standings ranked by wins (1st place per jornada = 1 win). Only podium (top 3) counts. 3rd/4th place match is excluded. */
+export interface LeagueStandingEntry {
+  playerId: string;
+  playerName: string;
+  userId?: string;
+  wins: number;        // jornadas won (1st place)
+  podiums: number;     // top-3 finishes
+  roundsPlayed: number;
+}
+
 // ─── Tournament ───────────────────────────────────────────────────────────────
 export type TournamentStatus =
   | "DRAFT"
@@ -19,13 +38,18 @@ export type TournamentStatus =
   | "KNOCKOUT"
   | "FINISHED";
 
+/** "tournament" = standalone, no points. "league_event" = counts toward a league. */
+export type EventType = "tournament" | "league_event";
+
 export interface Tournament {
   id: string;
   name: string;
   status: TournamentStatus;
+  eventType: EventType;
+  leagueId?: string;          // only when eventType === "league_event"
   maxPlayers: number;
   playersPerGroup: number;
-  qualifiersCount: number; // set just before KNOCKOUT, defaults to top 50%
+  qualifiersCount: number;
   createdBy: string;
   createdAt: Timestamp;
   startedAt?: Timestamp;
@@ -53,6 +77,8 @@ export interface TournamentGroup {
   tournamentId: string;
   name: string;
   playerIds: string[];
+  judgeId?: string;     // uid of assigned judge (staff or admin)
+  judgeName?: string;   // display name for quick rendering
   createdAt: Timestamp;
 }
 

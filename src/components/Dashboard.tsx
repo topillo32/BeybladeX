@@ -69,7 +69,7 @@ const Dashboard = () => {
   const handleCreateTournament = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTournamentName.trim()) return;
-    await createTournament({ name: newTournamentName.trim(), maxPlayers: 16, playersPerGroup: 4 }, "legacy");
+    await createTournament({ name: newTournamentName.trim(), maxPlayers: 16, playersPerGroup: 4, eventType: "tournament" }, "legacy");
     setNewTournamentName("");
     setCurrentView("tournaments");
   };

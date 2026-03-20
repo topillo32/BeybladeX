@@ -3,7 +3,9 @@ export const translations = {
     // Nav
     dashboard: "Dashboard",
     tournaments: "Tournaments",
+    leagues: "Leagues",
     players: "Players",
+    users: "Users",
     myDashboard: "My Dashboard",
     signOut: "Sign out",
 
@@ -89,7 +91,7 @@ export const translations = {
 
     // Match card
     live: "LIVE",
-    wins: "wins",
+    wins: "Wins",
     deleteMatch: "Delete match",
 
     // Standings
@@ -122,17 +124,48 @@ export const translations = {
     noOpenTournaments: "No open tournaments right now",
     myStatus: "My status",
     notLinked: "Player profile not found. Contact an admin.",
+    view: "View",
+
+    // Leagues
+    createLeague: "Create league",
+    leagueName: "League name...",
+    leagueDescription: "Description (optional)",
+    noLeagues: "No leagues yet",
+    leagueStandings: "League Standings",
+    leagueEvents: "Rounds",
+    noLeagueEvents: "No rounds assigned to this league yet",
+    noFinishedEvents: "No finished rounds yet — standings will appear once rounds complete",
+    pointsScale: "Points scale",
+    points: "Points",
+    eventsPlayed: "Events",
+    typeTournament: "Tournament",
+    typeLeagueEvent: "League Round",
+    selectLeague: "League",
+    selectLeaguePlaceholder: "Select a league...",
+    judge: "Judge",
+    noJudge: "No judge",
+    removeJudge: "Remove judge",
+    judgeCannotBePlayer: "This person is a player in this group and cannot be its judge.",
+    myLeagues: "My Leagues",
+    notInAnyLeague: "You are not enrolled in any league yet",
+    podiums: "Podiums",
+    rounds: "Rounds",
 
     // Misc
     tournamentNotFound: "Tournament not found.",
     deleteConfirm: "Delete this tournament and all its data?",
     back: "← Tournaments",
+    inProgress: "In Progress",
+    finishedTournaments: "Finished",
+    noTournamentsInProgress: "No active tournaments",
   },
   es: {
     // Nav
     dashboard: "Panel",
     tournaments: "Torneos",
+    leagues: "Ligas",
     players: "Jugadores",
+    users: "Usuarios",
     myDashboard: "Mi Panel",
     signOut: "Cerrar sesión",
 
@@ -218,7 +251,7 @@ export const translations = {
 
     // Match card
     live: "EN VIVO",
-    wins: "gana",
+    wins: "Victorias",
     deleteMatch: "Eliminar partida",
 
     // Standings
@@ -251,11 +284,40 @@ export const translations = {
     noOpenTournaments: "No hay torneos abiertos en este momento",
     myStatus: "Mi estado",
     notLinked: "Perfil de jugador no encontrado. Contacta a un admin.",
+    view: "Ver",
+
+    // Leagues
+    createLeague: "Crear liga",
+    leagueName: "Nombre de la liga...",
+    leagueDescription: "Descripción (opcional)",
+    noLeagues: "Sin ligas aún",
+    leagueStandings: "Tabla de la Liga",
+    leagueEvents: "Jornadas",
+    noLeagueEvents: "No hay jornadas asignadas a esta liga aún",
+    noFinishedEvents: "Sin jornadas finalizadas aún — la tabla aparecerá cuando terminen las jornadas",
+    pointsScale: "Escala de puntos",
+    points: "Puntos",
+    eventsPlayed: "Eventos",
+    typeTournament: "Torneo",
+    typeLeagueEvent: "Jornada",
+    selectLeague: "Liga",
+    selectLeaguePlaceholder: "Selecciona una liga...",
+    judge: "Juez",
+    noJudge: "Sin juez",
+    removeJudge: "Quitar juez",
+    judgeCannotBePlayer: "Esta persona es jugador en este grupo y no puede ser su juez.",
+    myLeagues: "Mis Ligas",
+    notInAnyLeague: "Aún no estás inscrito en ninguna liga",
+    podiums: "Podios",
+    rounds: "Jornadas",
 
     // Misc
     tournamentNotFound: "Torneo no encontrado.",
     deleteConfirm: "¿Eliminar este torneo y todos sus datos?",
     back: "← Torneos",
+    inProgress: "En Curso",
+    finishedTournaments: "Finalizados",
+    noTournamentsInProgress: "No hay torneos activos",
   },
 } as const;
 

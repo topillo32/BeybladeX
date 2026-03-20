@@ -5,12 +5,14 @@ import { useAuthContext } from "@/lib/AuthContext";
 import { Sidebar } from "@/components/layout/Sidebar";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuthContext();
+  const { user, loading, isStaff } = useAuthContext();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) router.push("/auth");
-  }, [user, loading, router]);
+    if (loading) return;
+    if (!user) { router.push("/auth"); return; }
+    if (!isStaff) router.push("/player/tournaments");
+  }, [user, loading, isStaff, router]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -21,7 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
 
-  if (!user) return null;
+  if (!user || !isStaff) return null;
 
   return (
     <div className="flex h-screen overflow-hidden">

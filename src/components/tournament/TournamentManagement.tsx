@@ -30,7 +30,7 @@ export const TournamentManagement = () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      editing ? await updateTournament(editing.id, { name: name.trim() }) : await createTournament({ name: name.trim(), maxPlayers: 16, playersPerGroup: 4 }, "admin");
+      editing ? await updateTournament(editing.id, { name: name.trim() }) : await createTournament({ name: name.trim(), maxPlayers: 16, playersPerGroup: 4, eventType: "tournament" }, "admin");
       setName("");
       setEditing(null);
     } catch (err: any) {
