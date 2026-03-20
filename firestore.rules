@@ -25,6 +25,28 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Parts ─────────────────────────────────────────────────────────────────
+    match /parts/{partId} {
+      allow read:   if true;
+      allow write:  if isAdmin();
+    }
+
+    // ── Combos ────────────────────────────────────────────────────────────────
+    match /combos/{comboId} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && request.resource.data.playerId == uid();
+      allow update: if isAuth() && (resource.data.playerId == uid() || isStaff());
+      allow delete: if isAdmin();
+    }
+
+    // ── ComboHistory ──────────────────────────────────────────────────────────
+    match /comboHistory/{histId} {
+      allow read:   if isAuth();
+      allow create: if isAuth();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
     // ── Leagues ───────────────────────────────────────────────────────────────
     match /leagues/{leagueId} {
       allow read:   if isAuth();
