@@ -75,14 +75,11 @@ export const generateKnockoutBracket = async (
   existing.docs.forEach((d) => batch.delete(d.ref));
   await batch.commit();
 
-  // Emparejamiento: 1 vs último, 2 vs penúltimo...
   const n = qualifiers.length;
-  const newBatch = writeBatch(db);
-  const phaseMap: Record<number, MatchPhase> = {
-    64: "ROUND_OF_64", 32: "ROUND_OF_32", 16: "QUARTERFINAL", 8: "SEMIFINAL", 4: "FINAL",
-  };
-  const phase: MatchPhase = phaseMap[n] ?? "ROUND_OF_32";
+  const phase = getPhaseForCount(n);
 
+  // Emparejamiento: 1 vs último, 2 vs penúltimo...
+  const newBatch = writeBatch(db);
   for (let i = 0; i < n / 2; i++) {
     const ref = doc(matchesCol(tournamentId));
     newBatch.set(ref, {
@@ -95,6 +92,88 @@ export const generateKnockoutBracket = async (
     });
   }
   await newBatch.commit();
+};
+
+// Mapeo: cantidad de jugadores → fase inicial
+const getPhaseForCount = (n: number): MatchPhase => {
+  if (n >= 64) return "ROUND_OF_64";
+  if (n >= 32) return "ROUND_OF_32";
+  if (n >= 16) return "ROUND_OF_16";
+  if (n >= 8)  return "QUARTERFINAL";
+  if (n >= 4)  return "SEMIFINAL";
+  return "FINAL";
+};
+
+// Orden de fases (sin THIRD_PLACE, se maneja aparte)
+const PHASE_PROGRESSION: MatchPhase[] = [
+  "ROUND_OF_64", "ROUND_OF_32", "ROUND_OF_16", "QUARTERFINAL", "SEMIFINAL", "FINAL",
+];
+
+/**
+ * Avanza el bracket al completarse una fase:
+ * - SEMIFINAL completada → genera THIRD_PLACE (perdedores) + FINAL (ganadores)
+ * - Cualquier otra fase → genera la siguiente con los ganadores
+ */
+export const advanceKnockoutRound = async (
+  tournamentId: string,
+  currentPhaseMatches: Match[]
+): Promise<boolean> => {
+  if (currentPhaseMatches.some((m) => !m.isFinished)) return false;
+
+  const currentPhase = currentPhaseMatches[0].phase;
+  if (currentPhase === "FINAL" || currentPhase === "THIRD_PLACE") return false;
+
+  const sorted = [...currentPhaseMatches].sort((a, b) => (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0));
+  const batch = writeBatch(db);
+  const col = collection(db, "tournaments", tournamentId, "matches");
+
+  if (currentPhase === "SEMIFINAL") {
+    // Ganadores → FINAL, Perdedores → THIRD_PLACE
+    const winners = sorted.map((m) => m.winnerId === m.playerA.id ? m.playerA : m.playerB);
+    const losers  = sorted.map((m) => m.winnerId === m.playerA.id ? m.playerB : m.playerA);
+
+    const finalRef = doc(col);
+    batch.set(finalRef, {
+      tournamentId, groupId: null, phase: "FINAL",
+      round: 1, bracketPosition: 0,
+      playerA: winners[0], playerB: winners[1],
+      playerAScore: 0, playerBScore: 0,
+      isFinished: false, winnerId: null, history: [],
+      createdAt: serverTimestamp(),
+    });
+
+    const thirdRef = doc(col);
+    batch.set(thirdRef, {
+      tournamentId, groupId: null, phase: "THIRD_PLACE",
+      round: 1, bracketPosition: 0,
+      playerA: losers[0], playerB: losers[1],
+      playerAScore: 0, playerBScore: 0,
+      isFinished: false, winnerId: null, history: [],
+      createdAt: serverTimestamp(),
+    });
+  } else {
+    // Siguiente fase normal con los ganadores
+    const idx = PHASE_PROGRESSION.indexOf(currentPhase);
+    if (idx === -1 || idx + 1 >= PHASE_PROGRESSION.length) return false;
+    const nextPhase = PHASE_PROGRESSION[idx + 1];
+    const winners = sorted.map((m) => m.winnerId === m.playerA.id ? m.playerA : m.playerB);
+
+    for (let i = 0; i < winners.length; i += 2) {
+      const ref = doc(col);
+      batch.set(ref, {
+        tournamentId, groupId: null, phase: nextPhase,
+        round: (currentPhaseMatches[0].round ?? 1) + 1,
+        bracketPosition: i / 2,
+        playerA: winners[i], playerB: winners[i + 1],
+        playerAScore: 0, playerBScore: 0,
+        isFinished: false, winnerId: null, history: [],
+        createdAt: serverTimestamp(),
+      });
+    }
+  }
+
+  await batch.commit();
+  return true;
 };
 
 const WINNING_SCORE = 4;
@@ -120,12 +199,42 @@ export const updateMatchScore = async (
 
     const update: Record<string, unknown> = {
       [field]: newScore,
-      history: arrayUnion({ playerId, finishType: name, points, timestamp: serverTimestamp() }),
+      history: arrayUnion({ playerId, finishType: name, points, timestamp: Date.now() }),
     };
     if (newScore >= WINNING_SCORE) {
       update.isFinished = true;
       update.winnerId = playerId;
     }
     tx.update(matchRef, update);
+  });
+};
+
+export const undoLastScore = async (tournamentId: string, matchId: string) => {
+  const matchRef = doc(db, "tournaments", tournamentId, "matches", matchId);
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(matchRef);
+    if (!snap.exists()) throw new Error("Match not found.");
+    const data = snap.data() as Omit<Match, "id">;
+    if (!data.history?.length) return;
+
+    const history = [...data.history];
+    history.pop(); // quitar el último evento
+
+    // Recalcular scores desde el history
+    let playerAScore = 0;
+    let playerBScore = 0;
+    for (const event of history) {
+      if (event.playerId === data.playerA.id) playerAScore += event.points;
+      else playerBScore += event.points;
+    }
+
+    tx.update(matchRef, {
+      history,
+      playerAScore,
+      playerBScore,
+      isFinished: false,
+      winnerId: null,
+    });
   });
 };

@@ -156,6 +156,88 @@ export const addPlayerToGroupLiveWithPlayers = async (
   await batch.commit();
 };
 
+export const removePlayerFromGroupWithMatches = async (
+  tId: string,
+  gId: string,
+  playerId: string
+): Promise<void> => {
+  const matchesCol = collection(db, "tournaments", tId, "matches");
+
+  // Buscar matches no jugados de este jugador en este grupo
+  const [snapA, snapB] = await Promise.all([
+    getDocs(query(matchesCol, where("groupId", "==", gId), where("playerA.id", "==", playerId))),
+    getDocs(query(matchesCol, where("groupId", "==", gId), where("playerB.id", "==", playerId))),
+  ]);
+
+  const batch = writeBatch(db);
+
+  // Eliminar solo los matches no finalizados
+  [...snapA.docs, ...snapB.docs].forEach((d) => {
+    if (!d.data().isFinished) batch.delete(d.ref);
+  });
+
+  // Quitar del grupo
+  const ids = await getGroupPlayerIds(tId, gId);
+  batch.update(doc(db, "tournaments", tId, "groups", gId), {
+    playerIds: ids.filter((id) => id !== playerId),
+  });
+
+  await batch.commit();
+};
+
+const countByes = (playerIds: string[]) => playerIds.filter((id) => id.startsWith("bye-")).length;
+
+/**
+ * Fills an incomplete group with bye players (auto-lose).
+ * Max 3 byes per group. Byes get id "bye-{groupId}-{n}".
+ */
+export const fillGroupWithByes = async (
+  tournamentId: string,
+  group: TournamentGroup,
+  realPlayers: Player[]
+): Promise<void> => {
+  const existingByes = countByes(group.playerIds);
+  const slots = MAX_PER_GROUP - group.playerIds.length;
+  const byesToAdd = Math.min(slots, 3 - existingByes);
+  if (byesToAdd <= 0) return;
+
+  const batch = writeBatch(db);
+  const groupRef = doc(db, "tournaments", tournamentId, "groups", group.id);
+  const matchesCol = collection(db, "tournaments", tournamentId, "matches");
+
+  const newByePlayers: Player[] = [];
+  for (let i = 0; i < byesToAdd; i++) {
+    const byeId = `bye-${group.id}-${existingByes + i + 1}`;
+    newByePlayers.push({ id: byeId, name: "BYE", tournamentIds: [], pendingTournamentIds: [], createdAt: null as any });
+  }
+
+  batch.update(groupRef, { playerIds: [...group.playerIds, ...newByePlayers.map((b) => b.id)] });
+
+  // Solo creamos matches: cada nuevo bye vs cada jugador real (no bye vs bye)
+  for (const bye of newByePlayers) {
+    for (const real of realPlayers) {
+      const ref = doc(matchesCol);
+      batch.set(ref, {
+        tournamentId,
+        groupId: group.id,
+        phase: "GROUP",
+        round: null,
+        bracketPosition: null,
+        playerA: real,
+        playerB: bye,
+        playerAScore: 0,
+        playerBScore: 0,
+        isFinished: false,
+        winnerId: null,
+        history: [],
+        createdAt: serverTimestamp(),
+      });
+    }
+  }
+
+  await batch.commit();
+};
+
 export const generateGroups = async (
   tournamentId: string,
   players: Player[],

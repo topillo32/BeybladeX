@@ -1,20 +1,16 @@
 import { useState, useEffect, FormEvent } from "react";
-import { createGroup, getGroups, deleteGroup, generateRandomGroups } from "../services/groupService";
-import { collection, getDocs } from "firebase/firestore"; // Import directo para listar jugadores
+import { createGroup, getGroups, deleteGroup, generateGroups } from "../services/groupService";
+import { collection, getDocs, query, where } from "firebase/firestore"; // Import directo para listar jugadores
 import { db } from "../services/firebase";
 import PlayerRegistrationForm from "./PlayerRegistrationForm";
 import MatchList from "./MatchList";
 import { Trash2, UserPlus, Users, Wand2, ShieldCheck, User, Swords } from "lucide-react";
+import type { Player } from "@/types";
 
 interface Group {
   id: string;
   name: string;
   playerIds: string[];
-}
-
-interface Player {
-  id: string;
-  name: string;
 }
 
 interface GroupManagementProps {
@@ -26,7 +22,7 @@ const GroupManagement = ({ tournamentId }: GroupManagementProps) => {
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([]);
   const [newGroupName, setNewGroupName] = useState("");
-  const [numberOfGroups, setNumberOfGroups] = useState(2);
+  const [playersPerGroup, setPlayersPerGroup] = useState(4);
   const [isLoading, setIsLoading] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +36,8 @@ const GroupManagement = ({ tournamentId }: GroupManagementProps) => {
 
   const fetchPlayers = async () => {
     try {
-      // Asumiendo que los jugadores están en la colección "players" en la raíz
-      const snapshot = await getDocs(collection(db, "players"));
+      const q = query(collection(db, "players"), where("tournamentIds", "array-contains", tournamentId));
+      const snapshot = await getDocs(q);
       const playersData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Player));
       setAvailablePlayers(playersData);
     } catch (err) {
@@ -86,7 +82,7 @@ const GroupManagement = ({ tournamentId }: GroupManagementProps) => {
     }
   };
 
-  const handleGenerateRandomGroups = async () => {
+  const handleGenerateGroups = async () => {
     if (selectedPlayers.length === 0) {
       setError("Selecciona al menos un jugador.");
       return;
@@ -98,7 +94,8 @@ const GroupManagement = ({ tournamentId }: GroupManagementProps) => {
     setIsLoading(true);
     setError(null);
     try {
-      await generateRandomGroups(tournamentId, selectedPlayers, numberOfGroups);
+      const playersToGroup = availablePlayers.filter(p => selectedPlayers.includes(p.id));
+      await generateGroups(tournamentId, playersToGroup, playersPerGroup);
       await fetchGroups();
       setSelectedPlayers([]); // Limpiar selección
     } catch (err: any) {
@@ -149,7 +146,7 @@ const GroupManagement = ({ tournamentId }: GroupManagementProps) => {
       {/* Formulario de Registro Desplegable */}
       {showRegistration && (
         <div className="animate-in fade-in slide-in-from-top-4 duration-300 flex justify-center">
-          <PlayerRegistrationForm onSuccess={fetchPlayers} />
+          <PlayerRegistrationForm onSuccess={fetchPlayers} tournamentId={tournamentId} />
         </div>
       )}
 
@@ -193,17 +190,17 @@ const GroupManagement = ({ tournamentId }: GroupManagementProps) => {
         
         <div className="flex flex-col sm:flex-row items-end gap-4 mt-6">
             <div className="w-full sm:w-48">
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cantidad de Grupos</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Jugadores por Grupo</label>
                 <input 
                     type="number" 
                     min="1" 
-                    value={numberOfGroups} 
-                    onChange={(e) => setNumberOfGroups(parseInt(e.target.value))} 
+                    value={playersPerGroup} 
+                    onChange={(e) => setPlayersPerGroup(parseInt(e.target.value))} 
                     className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-3 py-2 focus:border-cyan-500 outline-none" 
                 />
             </div>
             <button 
-                onClick={handleGenerateRandomGroups} 
+                onClick={handleGenerateGroups} 
                 disabled={isLoading || selectedPlayers.length === 0} 
                 className="w-full sm:w-auto flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-6 rounded-lg shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:shadow-none transition-all"
             >

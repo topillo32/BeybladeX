@@ -29,11 +29,11 @@ export const getPlayerByUserId = async (uid: string) => {
   return { id: d.id, ...d.data() } as import("@/types").Player;
 };
 
-export const createPlayer = async (name: string) => {
+export const createPlayer = async (name: string, tournamentId?: string) => {
   if (!name.trim()) throw new Error("Name cannot be empty.");
   await addDoc(col, {
     name: name.trim(),
-    tournamentIds: [],
+    tournamentIds: tournamentId ? [tournamentId] : [],
     pendingTournamentIds: [],
     createdAt: serverTimestamp(),
   });

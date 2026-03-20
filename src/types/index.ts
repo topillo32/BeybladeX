@@ -57,7 +57,7 @@ export interface TournamentGroup {
 }
 
 // ─── Match ────────────────────────────────────────────────────────────────────
-export type MatchPhase = "GROUP" | "ROUND_OF_64" | "ROUND_OF_32" | "QUARTERFINAL" | "SEMIFINAL" | "FINAL";
+export type MatchPhase = "GROUP" | "ROUND_OF_64" | "ROUND_OF_32" | "ROUND_OF_16" | "QUARTERFINAL" | "SEMIFINAL" | "THIRD_PLACE" | "FINAL";
 
 export const FINISH_TYPES = {
   SPIN:   { points: 1, name: "Spin Finish" },
@@ -72,7 +72,7 @@ export interface MatchEvent {
   playerId: string;
   finishType: (typeof FINISH_TYPES)[FinishType]["name"];
   points: number;
-  timestamp: Timestamp;
+  timestamp: number;
 }
 
 export interface Match {

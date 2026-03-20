@@ -74,7 +74,7 @@ export const usePlayers = (tournamentId?: string) => {
 
   useEffect(() => {
     const q = tournamentId
-      ? query(collection(db, "players"), where("tournamentIds", "array-contains", tournamentId), orderBy("createdAt", "asc"))
+      ? query(collection(db, "players"), where("tournamentIds", "array-contains", tournamentId))
       : query(collection(db, "players"), orderBy("createdAt", "desc"));
     return onSnapshot(q,
       (snap) => {
@@ -91,11 +91,12 @@ export const usePlayers = (tournamentId?: string) => {
   return { players, loading };
 };
 
-/** All players NOT yet enrolled (approved) in a tournament — for the enroll panel */
+/** All players NOT yet enrolled (approved or pending) in a tournament — for the enroll panel */
 export const useUnenrolledPlayers = (tournamentId: string) => {
   const [players, setPlayers] = useState<Player[]>([]);
 
   useEffect(() => {
+    if (!tournamentId) return;
     return onSnapshot(
       query(collection(db, "players"), orderBy("createdAt", "desc")),
       (snap) => {
@@ -103,8 +104,8 @@ export const useUnenrolledPlayers = (tournamentId: string) => {
         setPlayers(
           all.filter(
             (p) =>
-              !p.tournamentIds?.includes(tournamentId) &&
-              !p.pendingTournamentIds?.includes(tournamentId)
+              !(p.tournamentIds ?? []).includes(tournamentId) &&
+              !(p.pendingTournamentIds ?? []).includes(tournamentId)
           )
         );
       }

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 import { db } from "@/services/firebase";
-import { updateMatchScore } from "@/services/matchService";
+import { updateMatchScore, undoLastScore } from "@/services/matchService";
 import { Match, FINISH_TYPES, Player, FinishType } from "@/types";
 
 interface Props { tournamentId: string; matchId: string; }
@@ -54,11 +55,26 @@ const ScoreButton = ({ finishType, playerId, onScore, disabled }: {
 export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
   const { match, loading, error } = useMatch(tournamentId, matchId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showWinnerModal, setShowWinnerModal] = useState(false);
+  const router = useRouter();
+
+  // Mostrar modal cuando el match termina
+  useEffect(() => {
+    if (match?.isFinished) setShowWinnerModal(true);
+  }, [match?.isFinished]);
 
   const handleScore = async (playerId: string, finishType: FinishType) => {
     if (isSubmitting || match?.isFinished) return;
     setIsSubmitting(true);
     try { await updateMatchScore(tournamentId, matchId, playerId, finishType); }
+    catch (err) { console.error(err); }
+    finally { setIsSubmitting(false); }
+  };
+
+  const handleUndo = async () => {
+    if (isSubmitting || !match?.history?.length) return;
+    setIsSubmitting(true);
+    try { await undoLastScore(tournamentId, matchId); }
     catch (err) { console.error(err); }
     finally { setIsSubmitting(false); }
   };
@@ -87,6 +103,43 @@ export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
   return (
     <div className="page-wrapper">
       <div className="page-content">
+
+        {/* Header con botón volver */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="btn-ghost text-sm py-1.5 px-3"
+          >
+            ← Volver
+          </button>
+          <p className="font-gaming text-xs tracking-widest text-gray-500">{match.phase.replace(/_/g, " ")}</p>
+        </div>
+
+        {/* Modal ganador */}
+        {showWinnerModal && winner && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+            <div className="card card-cyan p-8 text-center space-y-5 max-w-sm w-full" style={{ boxShadow: "0 0 40px rgba(234,179,8,0.2)" }}>
+              <p className="font-gaming text-xs tracking-widest text-yellow-500">MATCH OVER</p>
+              <p className="font-gaming text-4xl font-black text-yellow-400">🏆</p>
+              <p className="font-gaming text-2xl font-black text-white">{winner.name}</p>
+              <p className="text-gray-400 text-sm">{match.playerAScore} — {match.playerBScore}</p>
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  onClick={() => router.push(`/tournaments/${tournamentId}`)}
+                  className="btn-primary font-gaming text-xs tracking-wider py-3"
+                >
+                  Volver al torneo
+                </button>
+                <button
+                  onClick={() => setShowWinnerModal(false)}
+                  className="btn-ghost text-xs py-2"
+                >
+                  Ver detalles del match
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Scoreboard */}
         <div className="card card-cyan p-6">
@@ -147,8 +200,15 @@ export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
         {/* History */}
         {match.history?.length > 0 && (
           <div className="card overflow-hidden">
-            <div className="px-5 py-3 border-b border-white/5">
+            <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
               <p className="section-title mb-0">History</p>
+              <button
+                onClick={handleUndo}
+                disabled={isSubmitting}
+                className="btn-danger text-xs py-1 px-3"
+              >
+                ↩ Deshacer último
+              </button>
             </div>
             <ul className="divide-y divide-white/5 max-h-52 overflow-y-auto">
               {[...match.history].reverse().map((event, i) => {

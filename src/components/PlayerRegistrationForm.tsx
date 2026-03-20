@@ -3,9 +3,10 @@ import { createPlayer } from "../services/playerService"; // Ajusta la ruta si e
 
 interface PlayerRegistrationFormProps {
   onSuccess?: () => void;
+  tournamentId?: string;
 }
 
-const PlayerRegistrationForm = ({ onSuccess }: PlayerRegistrationFormProps) => {
+const PlayerRegistrationForm = ({ onSuccess, tournamentId }: PlayerRegistrationFormProps) => {
   const [playerName, setPlayerName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +24,7 @@ const PlayerRegistrationForm = ({ onSuccess }: PlayerRegistrationFormProps) => {
     setSuccess(null);
 
     try {
-      await createPlayer(playerName);
+      await createPlayer(playerName, tournamentId);
       setSuccess(`¡Jugador "${playerName}" registrado con éxito!`);
       setPlayerName(""); // Limpiar el input en caso de éxito
       if (onSuccess) onSuccess(); // Notificar al padre para recargar listas

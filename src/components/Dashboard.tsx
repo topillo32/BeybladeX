@@ -14,11 +14,12 @@ import {
 } from "lucide-react";
 import { collection, getDocs, orderBy, query, doc, onSnapshot } from "firebase/firestore";
 import { db } from "../services/firebase";
-import { createTournament, updateTournamentStatus, TournamentStatus } from "../services/tournamentService";
+import { useAuth } from "@/hooks/useAuth";
+import { createTournament, advanceTournamentStatus } from "../services/tournamentService";
+import type { TournamentStatus } from "@/types";
 import PlayerRegistrationForm from "./PlayerRegistrationForm";
 import GroupManagement from "./GroupManagement";
-import BracketView from "./BracketView";
-import Standings from "./Standings";
+import PlayerManagement from "./player/PlayerManagement";
 
 // Interfaces
 interface Tournament {
@@ -68,7 +69,7 @@ const Dashboard = () => {
   const handleCreateTournament = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTournamentName.trim()) return;
-    await createTournament(newTournamentName);
+    await createTournament({ name: newTournamentName.trim(), maxPlayers: 16, playersPerGroup: 4 }, "legacy");
     setNewTournamentName("");
     setCurrentView("tournaments");
   };
@@ -76,7 +77,7 @@ const Dashboard = () => {
   const handleAdvanceStatus = async (nextStatus: TournamentStatus) => {
       if (!selectedTournamentId) return;
       if (!window.confirm(`¿Avanzar fase a ${nextStatus}? Esta acción es irreversible.`)) return;
-      await updateTournamentStatus(selectedTournamentId, nextStatus);
+      await advanceTournamentStatus(selectedTournamentId, nextStatus);
   };
 
   const getStatusBadge = (status: string) => {
@@ -93,7 +94,7 @@ const Dashboard = () => {
   // Navegación
   const menuItems = [
     { id: "tournaments", label: "Torneos Activos", icon: Trophy, section: "main" },
-    { id: "registration", label: "Inscripción", icon: Users, section: "main" },
+    { id: "players", label: "Bladers", icon: Users, section: "main" },
     { id: "results", label: "Resultados", icon: LayoutGrid, section: "main" },
     { id: "create_tournament", label: "Nuevo Torneo", icon: PlusCircle, section: "admin" },
   ];
@@ -175,12 +176,8 @@ const Dashboard = () => {
           </div>
         );
 
-      case "registration":
-        return (
-            <div className="flex justify-center">
-                 <PlayerRegistrationForm />
-            </div>
-        );
+      case "players":
+        return <PlayerManagement />;
 
       case "manage_groups":
         return selectedTournamentId ? (

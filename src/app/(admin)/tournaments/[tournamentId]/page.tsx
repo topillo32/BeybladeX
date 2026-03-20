@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTournament, useGroups, useMatches, usePlayers, usePendingPlayers, useUnenrolledPlayers } from "@/hooks/useTournament";
 import { useAuthContext } from "@/lib/AuthContext";
 import { updateTournament, advanceTournamentStatus } from "@/services/tournamentService";
-import { generateGroups, addPlayerToGroupLiveWithPlayers } from "@/services/groupService";
+import { generateGroups, addPlayerToGroupLiveWithPlayers, fillGroupWithByes, removePlayerFromGroupWithMatches } from "@/services/groupService";
 import { generateGroupMatches, generateKnockoutBracket } from "@/services/matchService";
 import { computeGlobalStandings, getQualifiers, computeGroupStandings, autoQualifiersCount } from "@/services/standingsService";
 import { TournamentStepper } from "@/components/ui/TournamentStepper";
@@ -81,10 +81,8 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const handleApprove = async (player: import("@/types").Player) => {
     setWorking(true);
     try {
+      await addPlayerToGroupLiveWithPlayers(tournamentId, player, groups, [...players, player]);
       await approvePlayerEnrollment(player.id, tournamentId);
-      // Add to a group and create their new matches
-      const allApproved = [...players, player];
-      await addPlayerToGroupLiveWithPlayers(tournamentId, player, groups, allApproved);
     } finally {
       setWorking(false);
     }
@@ -120,7 +118,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           <p className="font-gaming text-cyan-400 text-sm tracking-widest animate-pulse">{t("processing")}</p>
         </div>
       )}
-      <div className="w-full max-w-4xl space-y-6">
+      <div className={`w-full space-y-6 ${tab === "bracket" ? "" : "max-w-4xl"}`}>
         {/* Header */}
         <div>
           <Link href="/tournaments" className="text-gray-500 hover:text-cyan-400 text-sm transition-colors">{t("back")}</Link>
@@ -244,9 +242,54 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
               ) : groups.map((g) => {
                 const gPlayers = players.filter((p) => g.playerIds.includes(p.id));
                 const standings = computeGroupStandings(matches, gPlayers, g.id);
+                const byeCount = g.playerIds.filter((id) => id.startsWith("bye-")).length;
+                const slots = tournament.playersPerGroup - g.playerIds.length;
+                const canFill = isAdmin && slots > 0 && byeCount < 3;
                 return (
-                  <div key={g.id} className="space-y-2">
-                    <p className="font-gaming text-sm font-bold text-cyan-300 tracking-widest">{g.name}</p>
+                  <div key={g.id} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="font-gaming text-sm font-bold text-cyan-300 tracking-widest">{g.name}</p>
+                      {canFill && (
+                        <button
+                          onClick={async () => {
+                            setWorking(true);
+                            try { await fillGroupWithByes(tournamentId, g, gPlayers.filter((p) => !p.id.startsWith("bye-"))); }
+                            finally { setWorking(false); }
+                          }}
+                          className="btn-ghost text-xs py-1 px-3 border border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                        >
+                          🃏 Rellenar con byes ({slots})
+                        </button>
+                      )}
+                    </div>
+                    {isAdmin && (
+                      <div className="flex flex-wrap gap-2">
+                        {g.playerIds.map((pid) => {
+                          const p = players.find((pl) => pl.id === pid);
+                          const name = pid.startsWith("bye-") ? "BYE" : (p?.name ?? pid);
+                          const hasPlayed = matches.some(
+                            (m) => m.groupId === g.id && m.isFinished &&
+                              (m.playerA.id === pid || m.playerB.id === pid)
+                          );
+                          return (
+                            <span key={pid} className="flex items-center gap-1 bg-white/5 border border-white/10 text-gray-300 text-xs px-2.5 py-1 rounded-full">
+                              {name}
+                              {!hasPlayed && (
+                                <button
+                                  onClick={async () => {
+                                    setWorking(true);
+                                    try { await removePlayerFromGroupWithMatches(tournamentId, g.id, pid); }
+                                    finally { setWorking(false); }
+                                  }}
+                                  className="ml-1 text-red-400 hover:text-red-300 leading-none"
+                                  title="Quitar jugador"
+                                >✕</button>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                     <StandingsTable standings={standings} highlightTop={2} />
                   </div>
                 );
@@ -280,7 +323,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           )}
 
           {tab === "bracket" && (
-            <BracketView matches={knockoutMatches} />
+            <BracketView matches={knockoutMatches} tournamentId={tournamentId} editable={isStaff} />
           )}
         </div>
       </div>

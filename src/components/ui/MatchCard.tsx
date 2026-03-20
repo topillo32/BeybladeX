@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { updateMatchScore } from "@/services/matchService";
+import { updateMatchScore, undoLastScore } from "@/services/matchService";
 import type { Match, FinishType } from "@/types";
 import { FINISH_TYPES } from "@/types";
 
@@ -26,6 +26,13 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId }
     if (submitting || m.isFinished) return;
     setSubmitting(true);
     try { await updateMatchScore(tournamentId, m.id, playerId, ft); }
+    finally { setSubmitting(false); }
+  };
+
+  const undo = async () => {
+    if (submitting || !m.history?.length) return;
+    setSubmitting(true);
+    try { await undoLastScore(tournamentId, m.id); }
     finally { setSubmitting(false); }
   };
 
@@ -92,6 +99,13 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId }
             </div>
           ))}
         </div>
+      )}
+
+      {/* Undo */}
+      {editable && m.history?.length > 0 && (
+        <button onClick={undo} disabled={submitting} className="btn-danger w-full text-xs">
+          ↩ Deshacer último punto
+        </button>
       )}
 
       {/* Delete */}
