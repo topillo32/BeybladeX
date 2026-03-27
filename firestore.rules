@@ -32,10 +32,16 @@ service cloud.firestore {
     }
 
     // ── Combos ────────────────────────────────────────────────────────────────
+    function ownsPlayer(playerId) {
+      return playerId == uid() ||
+        (exists(/databases/$(database)/documents/players/$(playerId)) &&
+         get(/databases/$(database)/documents/players/$(playerId)).data.userId == uid());
+    }
+
     match /combos/{comboId} {
       allow read:   if isAuth();
-      allow create: if isAuth() && request.resource.data.playerId == uid();
-      allow update: if isAuth() && (resource.data.playerId == uid() || isStaff());
+      allow create: if isAuth() && ownsPlayer(request.resource.data.playerId);
+      allow update: if isAuth() && (ownsPlayer(resource.data.playerId) || isStaff());
       allow delete: if isAdmin();
     }
 

@@ -1,5 +1,9 @@
 {
+  "/(admin)/dashboard/page": "app/(admin)/dashboard/page.js",
   "/(admin)/tournaments/page": "app/(admin)/tournaments/page.js",
   "/(admin)/parts/page": "app/(admin)/parts/page.js",
-  "/(admin)/tournaments/[tournamentId]/page": "app/(admin)/tournaments/[tournamentId]/page.js"
+  "/(admin)/users/page": "app/(admin)/users/page.js",
+  "/(admin)/tournaments/[tournamentId]/page": "app/(admin)/tournaments/[tournamentId]/page.js",
+  "/(admin)/leagues/page": "app/(admin)/leagues/page.js",
+  "/(admin)/players/page": "app/(admin)/players/page.js"
 }

@@ -3,9 +3,12 @@ import type { Match, Player, StandingEntry, TournamentGroup } from "@/types";
 export const computeGroupStandings = (
   matches: Match[],
   players: Player[],
-  groupId: string
+  groupId: string,
+  withdrawnPlayerIds: string[] = []
 ): StandingEntry[] => {
-  const realPlayers = players.filter((p) => !p.id.startsWith("bye-"));
+  // Treat withdrawn players same as byes — exclude from standings, their results don't count as real wins
+  const isGhost = (id: string) => id.startsWith("bye-") || withdrawnPlayerIds.includes(id);
+  const realPlayers = players.filter((p) => !isGhost(p.id));
   const groupMatches = matches.filter((m) => m.groupId === groupId && m.isFinished);
 
   const map = new Map<string, StandingEntry>();
@@ -17,11 +20,10 @@ export const computeGroupStandings = (
   });
 
   groupMatches.forEach((m) => {
-    const aIsBye = m.playerA.id.startsWith("bye-");
-    const bIsBye = m.playerB.id.startsWith("bye-");
+    const aIsGhost = isGhost(m.playerA.id);
+    const bIsGhost = isGhost(m.playerB.id);
 
-    if (!aIsBye && !bIsBye) {
-      // Match real vs real — contabilizar todo
+    if (!aIsGhost && !bIsGhost) {
       const a = map.get(m.playerA.id);
       const b = map.get(m.playerB.id);
       if (!a || !b) return;
@@ -30,15 +32,14 @@ export const computeGroupStandings = (
       b.pointsFor += m.playerBScore; b.pointsAgainst += m.playerAScore;
       if (m.winnerId === m.playerA.id) { a.wins++; b.losses++; }
       else { b.wins++; a.losses++; }
-    } else if (!aIsBye && bIsBye) {
-      // playerA es real, playerB es bye — solo contar puntos y victoria del real
+    } else if (!aIsGhost && bIsGhost) {
+      // real vs ghost — only count pointsFor, no win/loss impact
       const a = map.get(m.playerA.id);
       if (!a) return;
       a.played++;
       a.pointsFor += m.playerAScore;
       if (m.winnerId === m.playerA.id) a.wins++; else a.losses++;
-    } else if (aIsBye && !bIsBye) {
-      // playerA es bye, playerB es real
+    } else if (aIsGhost && !bIsGhost) {
       const b = map.get(m.playerB.id);
       if (!b) return;
       b.played++;
@@ -62,7 +63,7 @@ export const computeGlobalStandings = (
   const all: StandingEntry[] = [];
   groups.forEach((g) => {
     const gPlayers = players.filter((p) => g.playerIds.includes(p.id));
-    all.push(...computeGroupStandings(matches, gPlayers, g.id));
+    all.push(...computeGroupStandings(matches, gPlayers, g.id, g.withdrawnPlayerIds ?? []));
   });
   return all.sort((a, b) =>
     b.wins !== a.wins ? b.wins - a.wins : b.pointsFor - a.pointsFor

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { db } from "@/services/firebase";
 import { updateMatchScore, undoLastScore } from "@/services/matchService";
 import { Match, FINISH_TYPES, Player, FinishType } from "@/types";
+import { ComboVerifier } from "./ComboVerifier";
 
 interface Props { tournamentId: string; matchId: string; }
 
@@ -140,6 +141,15 @@ export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
             </div>
           </div>
         )}
+
+        {/* Verificación de combos */}
+        <ComboVerifier
+          tournamentId={tournamentId}
+          playerAId={match.playerA.id}
+          playerAName={match.playerA.name}
+          playerBId={match.playerB.id}
+          playerBName={match.playerB.name}
+        />
 
         {/* Scoreboard */}
         <div className="card card-cyan p-6">

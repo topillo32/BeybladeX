@@ -68,6 +68,7 @@ export interface Player {
   userId?: string;
   tournamentIds: string[];          // approved enrollments
   pendingTournamentIds: string[];   // awaiting approval
+  withdrawnFromTournamentIds?: string[]; // withdrew mid-tournament (results kept but treated as bye)
   createdAt: Timestamp;
 }
 
@@ -77,8 +78,9 @@ export interface TournamentGroup {
   tournamentId: string;
   name: string;
   playerIds: string[];
-  judgeId?: string;     // uid of assigned judge (staff or admin)
-  judgeName?: string;   // display name for quick rendering
+  withdrawnPlayerIds?: string[]; // players who withdrew mid-tournament (treated as bye in standings)
+  judgeId?: string;
+  judgeName?: string;
   createdAt: Timestamp;
 }
 

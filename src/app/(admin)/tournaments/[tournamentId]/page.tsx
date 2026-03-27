@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTournament, useGroups, useMatches, usePlayers, usePendingPlayers, useUnenrolledPlayers } from "@/hooks/useTournament";
 import { useAuthContext } from "@/lib/AuthContext";
 import { updateTournament, advanceTournamentStatus } from "@/services/tournamentService";
-import { generateGroups, addPlayerToGroupLiveWithPlayers, fillGroupWithByes, removePlayerFromGroupWithMatches, assignJudge, removeJudge } from "@/services/groupService";
+import { generateGroups, addPlayerToGroupLiveWithPlayers, fillGroupWithByes, removePlayerFromGroupWithMatches, withdrawPlayerFromGroup, deleteGroup, assignJudge, removeJudge } from "@/services/groupService";
 import { generateGroupMatches, generateKnockoutBracket } from "@/services/matchService";
 import { computeGlobalStandings, getQualifiers, computeGroupStandings, autoQualifiersCount } from "@/services/standingsService";
 import { getAllUsers } from "@/services/authService";
@@ -40,10 +40,10 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const { t } = useLang();
   const [tab, setTab] = useState<Tab>("overview");
   const [working, setWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [enrollSearch, setEnrollSearch] = useState("");
   const [staffUsers, setStaffUsers] = useState<AppUser[]>([]);
 
-  // Load staff/admin users for judge selector
   useEffect(() => {
     if (!isAdmin) return;
     getAllUsers().then((all) => setStaffUsers(all.filter((u) => u.role === "staff" || u.role === "admin")));
@@ -57,10 +57,20 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const globalStandings = computeGlobalStandings(groups, matches, players);
   const autoCount = autoQualifiersCount(globalStandings.length);
 
+  const run = async (fn: () => Promise<void>) => {
+    setWorking(true);
+    setError(null);
+    try { await fn(); }
+    catch (e: any) { setError(e.message ?? "Error inesperado. Intenta de nuevo."); }
+    finally { setWorking(false); }
+  };
+
   const handleAdvance = async () => {
     const next = NEXT_STATUS[tournament.status];
     if (!next) return;
+    if (!confirm(`¿Avanzar a la siguiente fase? Esta acción no se puede deshacer.`)) return;
     setWorking(true);
+    setError(null);
     try {
       if (next === "GROUP_STAGE") {
         const freshGroups = await generateGroups(tournamentId, players, tournament.playersPerGroup);
@@ -75,6 +85,8 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
         await generateKnockoutBracket(tournamentId, qualifiers);
       }
       await advanceTournamentStatus(tournamentId, next);
+    } catch (e: any) {
+      setError(e.message ?? "Error al avanzar fase.");
     } finally {
       setWorking(false);
     }
@@ -84,34 +96,26 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
     await enrollPlayerInTournament(playerId, tournamentId, tournament.status);
   };
 
-  const handleApprove = async (player: import("@/types").Player) => {
-    setWorking(true);
-    try {
-      await addPlayerToGroupLiveWithPlayers(tournamentId, player, groups, [...players, player]);
+  const handleApprove = (player: import("@/types").Player) =>
+    run(async () => {
+      await addPlayerToGroupLiveWithPlayers(tournamentId, player, groups, [...players, player], tournament.playersPerGroup);
       await approvePlayerEnrollment(player.id, tournamentId);
-    } finally {
-      setWorking(false);
-    }
-  };
+    });
 
-  const handleReject = async (playerId: string) => {
-    await unenrollPlayerFromTournament(playerId, tournamentId);
+  const handleReject = (playerId: string) => {
+    if (!confirm("¿Rechazar a este jugador?")) return;
+    run(() => unenrollPlayerFromTournament(playerId, tournamentId));
   };
 
   const handleAssignJudge = async (groupId: string, judgeUid: string) => {
-    if (!judgeUid) {
-      await removeJudge(tournamentId, groupId);
-      return;
-    }
-    // Check judge is not a player in this group
+    if (!judgeUid) { run(() => removeJudge(tournamentId, groupId)); return; }
     const group = groups.find((g) => g.id === groupId);
     const judgeAsPlayer = players.find((p) => p.userId === judgeUid);
     if (group && judgeAsPlayer && group.playerIds.includes(judgeAsPlayer.id)) {
-      alert(t("judgeCannotBePlayer"));
-      return;
+      setError(t("judgeCannotBePlayer")); return;
     }
     const judgeUser = staffUsers.find((u) => u.uid === judgeUid);
-    if (judgeUser) await assignJudge(tournamentId, groupId, judgeUid, judgeUser.displayName);
+    if (judgeUser) run(() => assignJudge(tournamentId, groupId, judgeUid, judgeUser.displayName));
   };
 
   const NEXT_LABEL_T = () => ({
@@ -131,6 +135,13 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
 
   return (
     <div className="page-wrapper">
+      {error && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-900/90 border border-red-500/50 text-red-300 font-gaming text-xs px-5 py-3 rounded-xl shadow-xl flex items-center gap-3">
+          <span>⚠ {error}</span>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-white leading-none">✕</button>
+        </div>
+      )}
+
       {working && (
         <div className="fixed inset-0 bg-black/70 flex flex-col items-center justify-center z-50 gap-4">
           <div className="relative w-14 h-14">
@@ -140,259 +151,273 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           <p className="font-gaming text-cyan-400 text-sm tracking-widest animate-pulse">{t("processing")}</p>
         </div>
       )}
-      <div className={`w-full space-y-6 ${tab === "bracket" ? "" : "max-w-4xl"}`}>
-        <div>
-          <Link href="/tournaments" className="text-gray-500 hover:text-cyan-400 text-sm transition-colors">{t("back")}</Link>
-          <div className="flex items-center gap-3 mt-2">
-            <h1 className="font-gaming text-2xl font-black tracking-widest text-white flex-1">{tournament.name}</h1>
-            <StatusBadge status={tournament.status} />
-          </div>
-        </div>
 
-        <div className="card p-4">
-          <TournamentStepper status={tournament.status} />
-        </div>
+      <div className="w-full flex gap-6 items-start px-4 py-6 max-w-screen-2xl mx-auto">
 
-        {isStaff && tournament.status === "GROUP_STAGE" && pendingPlayers.length > 0 && (
-          <div className="card p-4 space-y-3 border border-amber-500/30">
-            <p className="section-title text-amber-400">⏳ {t("pendingApproval")} ({pendingPlayers.length})</p>
-            <ul className="divide-y divide-white/5">
-              {pendingPlayers.map((p) => (
-                <li key={p.id} className="flex items-center justify-between py-2.5 gap-3">
-                  <span className="text-white font-medium">{p.name}</span>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleApprove(p)} className="btn-primary text-xs py-1.5 px-3 font-gaming tracking-wider">✓ {t("approve")}</button>
-                    <button onClick={() => handleReject(p.id)} className="btn-danger text-xs py-1.5">✗ {t("reject")}</button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {isStaff && OPEN_REG.includes(tournament.status) && (
-          <div className="card p-4 space-y-3">
-            <p className="section-title">➕ {t("addPlayers")}</p>
-            <input type="text" value={enrollSearch} onChange={(e) => setEnrollSearch(e.target.value)}
-              placeholder={t("searchPlayer")} className="input-base text-sm" />
-            {(() => {
-              const filtered = unenrolledPlayers.filter((p) =>
-                p.name.toLowerCase().includes(enrollSearch.toLowerCase())
-              );
-              if (filtered.length === 0) return <p className="text-gray-500 text-sm text-center py-2">{t("noPlayersAvailable")}</p>;
-              return (
-                <ul className="divide-y divide-white/5 max-h-48 overflow-y-auto">
-                  {filtered.map((p) => (
-                    <li key={p.id} className="flex items-center justify-between py-2 gap-3">
-                      <span className="text-white text-sm">{p.name}</span>
-                      <button onClick={() => handleEnroll(p.id)}
-                        className="btn-primary text-xs py-1 px-3 font-gaming tracking-wider shrink-0">
-                        {tournament.status === "GROUP_STAGE" ? t("request") : t("enroll")}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              );
-            })()}
-          </div>
-        )}
-
-        {isAdmin && tournament.status === "GROUP_STAGE" && (
-          <div className="card card-cyan p-4 flex items-center gap-4">
-            <div className="flex-1">
-              <p className="section-title mb-1">{t("howManyQualify")}</p>
-              <p className="text-gray-400 text-xs">{globalStandings.length} {t("playersInStandings")}</p>
-            </div>
-            <div className="text-center">
-              <p className="font-gaming text-3xl font-black text-cyan-400">{autoCount}</p>
-              <p className="text-gray-500 text-xs font-gaming tracking-wider">{t("auto")}</p>
+        {/* ── Sidebar izquierdo ── */}
+        <aside className="w-72 shrink-0 space-y-4 sticky top-6">
+          <div>
+            <Link href="/tournaments" className="text-gray-500 hover:text-cyan-400 text-sm transition-colors">{t("back")}</Link>
+            <div className="flex items-center gap-2 mt-2">
+              <h1 className="font-gaming text-lg font-black tracking-widest text-white flex-1 leading-tight">{tournament.name}</h1>
+              <StatusBadge status={tournament.status} />
             </div>
           </div>
-        )}
 
-        {isAdmin && NEXT_STATUS[tournament.status] && (
-          <button onClick={handleAdvance} disabled={working}
-            className="btn-primary w-full font-gaming text-sm tracking-wider py-3.5">
-            {working ? t("processing") : `👉 ${NEXT_LABEL_T()[tournament.status]}`}
-          </button>
-        )}
+          <div className="card p-3">
+            <TournamentStepper status={tournament.status} />
+          </div>
 
-        <div className="flex gap-1 p-1 bg-white/5 rounded-xl overflow-x-auto">
-          {TABS.map((tb) => (
-            <button key={tb.key} onClick={() => setTab(tb.key)}
-              className={`flex-1 py-2.5 rounded-lg font-gaming text-xs tracking-wider whitespace-nowrap transition-all min-w-fit px-2
-                ${tab === tb.key ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
-              {tb.icon} {tb.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="animate-fade-in" key={tab}>
-          {tab === "overview" && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: t("players"),    value: players.length,    icon: "👤" },
-                { label: t("groups"),     value: groups.length,     icon: "👥" },
-                { label: t("matches"),    value: matches.length,    icon: "⚔️" },
-                { label: t("qualifiers"), value: tournament.status === "GROUP_STAGE" ? autoCount : (tournament.qualifiersCount || t("tbd")), icon: "🏆" },
-              ].map((s) => (
-                <div key={s.label} className="card card-cyan p-4 text-center space-y-1">
-                  <p className="text-2xl">{s.icon}</p>
-                  <p className="font-gaming text-3xl font-black text-cyan-400">{s.value}</p>
-                  <p className="text-gray-400 text-xs">{s.label}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {tab === "groups" && (
-            <div className="space-y-6">
-              {groups.length === 0 ? (
-                <div className="card p-10 text-center">
-                  <p className="text-4xl mb-3">👥</p>
-                  <p className="text-white font-semibold">{t("noGroupsYet")}</p>
-                  <p className="text-gray-400 text-sm mt-1">{t("groupsAutoGenerated")}</p>
-                </div>
-              ) : groups.map((g) => {
-                const gPlayers = players.filter((p) => g.playerIds.includes(p.id));
-                const standings = computeGroupStandings(matches, gPlayers, g.id);
-                const byeCount = g.playerIds.filter((id) => id.startsWith("bye-")).length;
-                const slots = tournament.playersPerGroup - g.playerIds.length;
-                const canFill = isAdmin && slots > 0 && byeCount < 3;
-
-                // Staff eligible to judge this group: not a player in it
-                const eligibleJudges = staffUsers.filter((u) => {
-                  const asPlayer = players.find((p) => p.userId === u.uid);
-                  return !asPlayer || !g.playerIds.includes(asPlayer.id);
-                });
-
-                return (
-                  <div key={g.id} className="space-y-3">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <p className="font-gaming text-sm font-bold text-cyan-300 tracking-widest">{g.name}</p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Judge selector */}
-                        {isAdmin && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500 font-gaming">⚖️ {t("judge")}:</span>
-                            <select
-                              value={g.judgeId ?? ""}
-                              onChange={(e) => handleAssignJudge(g.id, e.target.value)}
-                              className="bg-white/5 border border-white/10 text-gray-300 text-xs font-gaming rounded-lg px-2 py-1 outline-none focus:border-cyan-500/50 cursor-pointer"
-                            >
-                              <option value="" className="bg-[#050d1a]">{t("noJudge")}</option>
-                              {eligibleJudges.map((u) => (
-                                <option key={u.uid} value={u.uid} className="bg-[#050d1a]">{u.displayName}</option>
-                              ))}
-                            </select>
-                            {g.judgeId && isAdmin && (
-                              <button
-                                onClick={() => removeJudge(tournamentId, g.id)}
-                                className="text-xs text-red-400 hover:text-red-300 font-gaming"
-                                title={t("removeJudge")}
-                              >✕</button>
-                            )}
-                          </div>
-                        )}
-                        {!isAdmin && g.judgeName && (
-                          <span className="text-xs text-purple-300 font-gaming border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 rounded-full">
-                            ⚖️ {g.judgeName}
-                          </span>
-                        )}
-                        {canFill && (
-                          <button
-                            onClick={async () => {
-                              setWorking(true);
-                              try { await fillGroupWithByes(tournamentId, g, gPlayers.filter((p) => !p.id.startsWith("bye-"))); }
-                              finally { setWorking(false); }
-                            }}
-                            className="btn-ghost text-xs py-1 px-3 border border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
-                          >
-                            🃏 Rellenar con byes ({slots})
-                          </button>
-                        )}
-                      </div>
+          {isStaff && tournament.status === "GROUP_STAGE" && pendingPlayers.length > 0 && (
+            <div className="card p-4 space-y-3 border border-amber-500/30">
+              <p className="section-title text-amber-400 text-xs">⏳ {t("pendingApproval")} ({pendingPlayers.length})</p>
+              <ul className="divide-y divide-white/5">
+                {pendingPlayers.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between py-2 gap-2">
+                    <span className="text-white text-xs font-medium truncate">{p.name}</span>
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => handleApprove(p)} className="btn-primary text-xs py-1 px-2 font-gaming">✓</button>
+                      <button onClick={() => handleReject(p.id)} className="btn-danger text-xs py-1 px-2">✗</button>
                     </div>
-                    {isAdmin && (
-                      <div className="flex flex-wrap gap-2">
-                        {g.playerIds.map((pid) => {
-                          const p = players.find((pl) => pl.id === pid);
-                          const name = pid.startsWith("bye-") ? "BYE" : (p?.name ?? pid);
-                          const hasPlayed = matches.some(
-                            (m) => m.groupId === g.id && m.isFinished &&
-                              (m.playerA.id === pid || m.playerB.id === pid)
-                          );
-                          return (
-                            <span key={pid} className="flex items-center gap-1 bg-white/5 border border-white/10 text-gray-300 text-xs px-2.5 py-1 rounded-full">
-                              {name}
-                              {!hasPlayed && (
-                                <button
-                                  onClick={async () => {
-                                    setWorking(true);
-                                    try { await removePlayerFromGroupWithMatches(tournamentId, g.id, pid); }
-                                    finally { setWorking(false); }
-                                  }}
-                                  className="ml-1 text-red-400 hover:text-red-300 leading-none"
-                                  title="Quitar jugador"
-                                >✕</button>
-                              )}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <StandingsTable standings={standings} highlightTop={2} />
-                  </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {isStaff && OPEN_REG.includes(tournament.status) && (
+            <div className="card p-4 space-y-3">
+              <p className="section-title text-xs">➕ {t("addPlayers")}</p>
+              <input type="text" value={enrollSearch} onChange={(e) => setEnrollSearch(e.target.value)}
+                placeholder={t("searchPlayer")} className="input-base text-xs" />
+              {(() => {
+                const filtered = unenrolledPlayers.filter((p) =>
+                  p.name.toLowerCase().includes(enrollSearch.toLowerCase())
                 );
-              })}
+                if (filtered.length === 0) return <p className="text-gray-500 text-xs text-center py-1">{t("noPlayersAvailable")}</p>;
+                return (
+                  <ul className="divide-y divide-white/5 max-h-52 overflow-y-auto">
+                    {filtered.map((p) => (
+                      <li key={p.id} className="flex items-center justify-between py-1.5 gap-2">
+                        <span className="text-white text-xs truncate">{p.name}</span>
+                        <button onClick={() => handleEnroll(p.id)}
+                          className="btn-primary text-xs py-1 px-2 font-gaming shrink-0">
+                          +
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
             </div>
           )}
 
-          {tab === "matches" && (
-            <div className="space-y-4">
-              {groupMatches.length === 0 ? (
-                <div className="card p-10 text-center">
-                  <p className="text-4xl mb-3">⚔️</p>
-                  <p className="text-white font-semibold">{t("noMatchesYet")}</p>
-                </div>
-              ) : (
-                <div className="grid md:grid-cols-2 gap-4">
-                  {groupMatches.map((m) => {
-                    const group = groups.find((g) => g.id === m.groupId);
-                    return (
-                      <MatchCard
-                        key={m.id}
-                        match={m}
-                        tournamentId={tournamentId}
-                        editable={isStaff}
-                        judgeId={group?.judgeId}
-                        callerUid={user?.uid}
-                        isAdmin={isAdmin}
-                        onDelete={isAdmin ? (id) => deleteMatch(tournamentId, id) : undefined}
-                      />
-                    );
-                  })}
-                </div>
-              )}
+          {isAdmin && tournament.status === "GROUP_STAGE" && (
+            <div className="card p-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-gray-400 text-xs">{t("howManyQualify")}</p>
+                <p className="text-gray-500 text-xs">{globalStandings.length} {t("playersInStandings")}</p>
+              </div>
+              <div className="text-center shrink-0">
+                <p className="font-gaming text-2xl font-black text-cyan-400">{autoCount}</p>
+                <p className="text-gray-500 text-xs font-gaming">{t("auto")}</p>
+              </div>
             </div>
           )}
 
-          {tab === "standings" && (
-            <div className="space-y-4">
-              <p className="section-title">{t("globalRanking")}</p>
-              <StandingsTable standings={globalStandings} highlightTop={tournament.qualifiersCount} />
-            </div>
+          {isAdmin && NEXT_STATUS[tournament.status] && (
+            <button onClick={handleAdvance} disabled={working}
+              className="btn-primary w-full font-gaming text-xs tracking-wider py-3">
+              {working ? t("processing") : `👉 ${NEXT_LABEL_T()[tournament.status]}`}
+            </button>
           )}
+        </aside>
 
-          {tab === "bracket" && (
-            <BracketView
-              matches={knockoutMatches}
-              tournamentId={tournamentId}
-              editable={isStaff}
-              callerUid={user?.uid}
-              isAdmin={isAdmin}
-            />
-          )}
+        {/* ── Contenido principal ── */}
+        <div className="flex-1 min-w-0 space-y-4">
+          <div className="flex gap-1 p-1 bg-white/5 rounded-xl overflow-x-auto">
+            {TABS.map((tb) => (
+              <button key={tb.key} onClick={() => setTab(tb.key)}
+                className={`flex-1 py-2.5 rounded-lg font-gaming text-xs tracking-wider whitespace-nowrap transition-all min-w-fit px-2
+                  ${tab === tb.key ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
+                {tb.icon} {tb.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="animate-fade-in" key={tab}>
+            {tab === "overview" && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: t("players"),    value: players.length,    icon: "👤" },
+                  { label: t("groups"),     value: groups.length,     icon: "👥" },
+                  { label: t("matches"),    value: matches.length,    icon: "⚔️" },
+                  { label: t("qualifiers"), value: tournament.status === "GROUP_STAGE" ? autoCount : (tournament.qualifiersCount || t("tbd")), icon: "🏆" },
+                ].map((s) => (
+                  <div key={s.label} className="card card-cyan p-4 text-center space-y-1">
+                    <p className="text-2xl">{s.icon}</p>
+                    <p className="font-gaming text-3xl font-black text-cyan-400">{s.value}</p>
+                    <p className="text-gray-400 text-xs">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {tab === "groups" && (
+              <div className="space-y-6">
+                {groups.length === 0 ? (
+                  <div className="card p-10 text-center">
+                    <p className="text-4xl mb-3">👥</p>
+                    <p className="text-white font-semibold">{t("noGroupsYet")}</p>
+                    <p className="text-gray-400 text-sm mt-1">{t("groupsAutoGenerated")}</p>
+                  </div>
+                ) : groups.map((g) => {
+                  const gPlayers = players.filter((p) => g.playerIds.includes(p.id));
+                  const standings = computeGroupStandings(matches, gPlayers, g.id, g.withdrawnPlayerIds ?? []);
+                  const byeCount = g.playerIds.filter((id) => id.startsWith("bye-")).length;
+                  const slots = tournament.playersPerGroup - g.playerIds.length;
+                  const realPlayerCount = g.playerIds.filter((id) => !id.startsWith("bye-")).length;
+                  const canDelete = isAdmin && realPlayerCount === 0;
+                  const canFill = isAdmin && slots > 0 && byeCount < 3;
+                  const eligibleJudges = staffUsers.filter((u) => {
+                    const asPlayer = players.find((p) => p.userId === u.uid);
+                    return !asPlayer || !g.playerIds.includes(asPlayer.id);
+                  });
+
+                  return (
+                    <div key={g.id} className="space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <p className="font-gaming text-sm font-bold text-cyan-300 tracking-widest">{g.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {isAdmin && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 font-gaming">⚖️ {t("judge")}:</span>
+                              <select
+                                value={g.judgeId ?? ""}
+                                onChange={(e) => handleAssignJudge(g.id, e.target.value)}
+                                className="bg-white/5 border border-white/10 text-gray-300 text-xs font-gaming rounded-lg px-2 py-1 outline-none focus:border-cyan-500/50 cursor-pointer"
+                              >
+                                <option value="" className="bg-[#050d1a]">{t("noJudge")}</option>
+                                {eligibleJudges.map((u) => (
+                                  <option key={u.uid} value={u.uid} className="bg-[#050d1a]">{u.displayName}</option>
+                                ))}
+                              </select>
+                              {g.judgeId && (
+                                <button onClick={() => removeJudge(tournamentId, g.id)}
+                                  className="text-xs text-red-400 hover:text-red-300 font-gaming" title={t("removeJudge")}>✕</button>
+                              )}
+                            </div>
+                          )}
+                          {!isAdmin && g.judgeName && (
+                            <span className="text-xs text-purple-300 font-gaming border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 rounded-full">
+                              ⚖️ {g.judgeName}
+                            </span>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => { if (confirm("¿Eliminar este grupo?")) run(() => deleteGroup(tournamentId, g.id)); }}
+                              className="btn-ghost text-xs py-1 px-3 border border-red-500/30 text-red-400 hover:bg-red-500/10"
+                            >🗑 Eliminar grupo</button>
+                          )}
+                          {canFill && (
+                            <button
+                              onClick={() => run(() => fillGroupWithByes(tournamentId, g, gPlayers.filter((p) => !p.id.startsWith("bye-"))))}
+                              className="btn-ghost text-xs py-1 px-3 border border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                            >🃏 Rellenar con byes ({slots})</button>
+                          )}
+                        </div>
+                      </div>
+                      {isAdmin && (
+                        <div className="flex flex-wrap gap-2">
+                          {g.playerIds.map((pid) => {
+                            const p = players.find((pl) => pl.id === pid);
+                            const isBye = pid.startsWith("bye-");
+                            const isWithdrawn = (g.withdrawnPlayerIds ?? []).includes(pid);
+                            const name = isBye ? "BYE" : (p?.name ?? pid);
+                            const hasFinished = matches.some(
+                              (m) => m.groupId === g.id && m.isFinished && (m.playerA.id === pid || m.playerB.id === pid)
+                            );
+                            return (
+                              <span key={pid} className={`flex items-center gap-1 border text-xs px-2.5 py-1 rounded-full ${
+                                isWithdrawn ? "bg-red-500/10 border-red-500/30 text-red-400 line-through"
+                                : isBye ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                                : "bg-white/5 border-white/10 text-gray-300"
+                              }`}>
+                                {name}
+                                {!isWithdrawn && (
+                                  <button
+                                    onClick={() => {
+                                      const msg = hasFinished
+                                        ? "¿Retirar jugador? Sus resultados se conservan pero queda excluido de la clasificación."
+                                        : "¿Quitar jugador? Se eliminarán sus partidas pendientes.";
+                                      if (!confirm(msg)) return;
+                                      run(() => hasFinished
+                                        ? withdrawPlayerFromGroup(tournamentId, g.id, pid)
+                                        : removePlayerFromGroupWithMatches(tournamentId, g.id, pid)
+                                      );
+                                    }}
+                                    className="ml-1 text-red-400 hover:text-red-300 leading-none"
+                                    title={hasFinished ? "Retirar (conserva resultados)" : "Quitar jugador"}
+                                  >✕</button>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <StandingsTable standings={standings} highlightTop={2} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {tab === "matches" && (
+              <div className="space-y-4">
+                {groupMatches.length === 0 ? (
+                  <div className="card p-10 text-center">
+                    <p className="text-4xl mb-3">⚔️</p>
+                    <p className="text-white font-semibold">{t("noMatchesYet")}</p>
+                  </div>
+                ) : (
+                  <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {groupMatches.map((m) => {
+                      const group = groups.find((g) => g.id === m.groupId);
+                      return (
+                        <MatchCard
+                          key={m.id}
+                          match={m}
+                          tournamentId={tournamentId}
+                          editable={isStaff}
+                          judgeId={group?.judgeId}
+                          callerUid={user?.uid}
+                          isAdmin={isAdmin}
+                          onDelete={isAdmin ? (id) => deleteMatch(tournamentId, id) : undefined}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {tab === "standings" && (
+              <div className="space-y-4">
+                <p className="section-title">{t("globalRanking")}</p>
+                <StandingsTable standings={globalStandings} highlightTop={tournament.qualifiersCount} />
+              </div>
+            )}
+
+            {tab === "bracket" && (
+              <BracketView
+                matches={knockoutMatches}
+                tournamentId={tournamentId}
+                editable={isStaff}
+                callerUid={user?.uid}
+                isAdmin={isAdmin}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -57,9 +57,11 @@ export default function AuthPage() {
       if (mode === "login") {
         const cred = await loginUser(email, password);
         const userData = await getUserData(cred.user.uid);
-        router.push(userData?.role === "player" ? "/player/tournaments" : "/dashboard");
+        // If user doc missing, useAuth will recover it — redirect to player by default
+        const role = userData?.role ?? "player";
+        router.push(role === "player" ? "/player/tournaments" : "/dashboard");
       } else {
-        // Check name uniqueness (case-sensitive)
+        // Check name uniqueness (case-insensitive)
         const nameTaken = await checkDisplayNameTaken(name.trim());
         if (nameTaken) {
           setFieldErrors((prev) => ({ ...prev, name: "Este nombre ya está en uso" }));

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useTournaments } from "@/hooks/useTournament";
-import { getPlayerByUserId, enrollPlayerInTournament } from "@/services/playerService";
+import { getPlayerByUserId, enrollPlayerInTournament, leavePlayerFromTournament } from "@/services/playerService";
 import { StatusBadge } from "@/components/ui/Badges";
 import { Spinner } from "@/components/ui/Spinner";
 import { useLang } from "@/lib/LangContext";
@@ -18,6 +18,7 @@ export default function PlayerTournamentsPage() {
 
   const [player, setPlayer] = useState<Player | null | undefined>(undefined);
   const [enrolling, setEnrolling] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -49,6 +50,21 @@ export default function PlayerTournamentsPage() {
       setPlayer(updated);
     } finally {
       setEnrolling(null);
+    }
+  };
+
+  const handleLeave = async (tournament: Tournament) => {
+    if (!player) return;
+    if (!confirm(`¿Seguro que quieres salir de "${tournament.name}"?`)) return;
+    setLeaving(tournament.id);
+    try {
+      await leavePlayerFromTournament(player.id, tournament.id);
+      const updated = await getPlayerByUserId(user!.uid);
+      setPlayer(updated);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setLeaving(null);
     }
   };
 
@@ -91,6 +107,13 @@ export default function PlayerTournamentsPage() {
                   >
                     👁 {t("view")}
                   </Link>
+                  <button
+                    onClick={() => handleLeave(tournament)}
+                    disabled={leaving === tournament.id}
+                    className="font-gaming text-xs text-red-400 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-all shrink-0 disabled:opacity-50"
+                  >
+                    {leaving === tournament.id ? "..." : "✕ Salir"}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -100,65 +123,74 @@ export default function PlayerTournamentsPage() {
         {/* Torneos abiertos a inscripción */}
         <div className="space-y-3">
           <p className="section-title">📋 {t("availableTournaments")}</p>
-        {openTournaments.length === 0 ? (
-          <div className="card p-12 text-center space-y-3">
-            <p className="text-4xl">🏆</p>
-            <p className="text-white font-semibold">{t("noOpenTournaments")}</p>
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {openTournaments.map((tournament) => {
-              const status = getMyStatus(tournament);
-              const isEnrolling = enrolling === tournament.id;
+          {openTournaments.length === 0 ? (
+            <div className="card p-12 text-center space-y-3">
+              <p className="text-4xl">🏆</p>
+              <p className="text-white font-semibold">{t("noOpenTournaments")}</p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {openTournaments.map((tournament) => {
+                const status = getMyStatus(tournament);
+                const isEnrolling = enrolling === tournament.id;
 
-              return (
-                <li key={tournament.id} className="card p-4 flex items-center gap-4">
-                  <div className="flex-1 space-y-1 min-w-0">
-                    <p className="font-gaming font-bold text-white tracking-wide truncate">
-                      {tournament.name}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={tournament.status} />
-                      <span className="text-gray-500 text-xs">{tournament.maxPlayers} max</span>
+                return (
+                  <li key={tournament.id} className="card p-4 flex items-center gap-4">
+                    <div className="flex-1 space-y-1 min-w-0">
+                      <p className="font-gaming font-bold text-white tracking-wide truncate">
+                        {tournament.name}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={tournament.status} />
+                        <span className="text-gray-500 text-xs">{tournament.maxPlayers} max</span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Link
-                      href={`/player/tournaments/${tournament.id}`}
-                      className="font-gaming text-xs text-cyan-400 border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-1.5 rounded-lg transition-all"
-                    >
-                      👁 {t("view")}
-                    </Link>
-                    {status === "enrolled" && (
-                      <span className="font-gaming text-xs text-green-400 border border-green-500/30 bg-green-500/10 px-3 py-1.5 rounded-lg">
-                        {t("alreadyEnrolled")}
-                      </span>
-                    )}
-                    {status === "pending" && (
-                      <span className="font-gaming text-xs text-amber-400 border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 rounded-lg">
-                        ⏳ {t("pendingEnrollment")}
-                      </span>
-                    )}
-                    {status === "none" && player && (
-                      <button
-                        onClick={() => handleEnroll(tournament)}
-                        disabled={isEnrolling}
-                        className="btn-primary font-gaming text-xs tracking-wider py-1.5 px-4 disabled:opacity-50"
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Link
+                        href={`/player/tournaments/${tournament.id}`}
+                        className="font-gaming text-xs text-cyan-400 border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-1.5 rounded-lg transition-all"
                       >
-                        {isEnrolling
-                          ? "..."
-                          : tournament.status === "GROUP_STAGE"
-                          ? t("requestEnroll")
-                          : t("enrollMe")}
-                      </button>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                        👁 {t("view")}
+                      </Link>
+                      {status === "enrolled" && (
+                        <span className="font-gaming text-xs text-green-400 border border-green-500/30 bg-green-500/10 px-3 py-1.5 rounded-lg">
+                          {t("alreadyEnrolled")}
+                        </span>
+                      )}
+                      {(status === "enrolled" || status === "pending") && (
+                        <button
+                          onClick={() => handleLeave(tournament)}
+                          disabled={leaving === tournament.id}
+                          className="font-gaming text-xs text-red-400 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                        >
+                          {leaving === tournament.id ? "..." : status === "pending" ? "✕ Cancelar" : "✕ Salir"}
+                        </button>
+                      )}
+                      {status === "pending" && (
+                        <span className="font-gaming text-xs text-amber-400 border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 rounded-lg">
+                          ⏳ {t("pendingEnrollment")}
+                        </span>
+                      )}
+                      {status === "none" && player && (
+                        <button
+                          onClick={() => handleEnroll(tournament)}
+                          disabled={isEnrolling}
+                          className="btn-primary font-gaming text-xs tracking-wider py-1.5 px-4 disabled:opacity-50"
+                        >
+                          {isEnrolling
+                            ? "..."
+                            : tournament.status === "GROUP_STAGE"
+                            ? t("requestEnroll")
+                            : t("enrollMe")}
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
         {/* Torneos finalizados donde participó */}

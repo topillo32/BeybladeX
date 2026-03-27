@@ -1,5 +1,5 @@
 import {
-  collection, addDoc, updateDoc, deleteDoc,
+  collection, addDoc, updateDoc, deleteDoc, setDoc,
   doc, serverTimestamp, arrayUnion, arrayRemove, getDoc, query, where, getDocs,
 } from "firebase/firestore";
 import { db } from "./firebase";
@@ -29,10 +29,38 @@ export const getPlayerByUserId = async (uid: string) => {
   return { id: d.id, ...d.data() } as import("@/types").Player;
 };
 
+/** Used internally for recovery when player doc is missing after a failed registration. */
+export const createPlayerDoc = async (uid: string, displayName: string): Promise<void> => {
+  const nameLower = displayName.trim().toLowerCase();
+  // Check if an unlinked player with this name exists first
+  const snap = await getDocs(query(col, where("nameLower", "==", nameLower)));
+  const unlinked = snap.docs.find((d) => !d.data().userId);
+  if (unlinked) {
+    await updateDoc(unlinked.ref, { userId: uid });
+    return;
+  }
+  // Only create if no doc exists yet for this uid
+  const existing = await getDoc(doc(db, "players", uid));
+  if (existing.exists()) return;
+  await setDoc(doc(db, "players", uid), {
+    name: displayName.trim(),
+    nameLower,
+    userId: uid,
+    tournamentIds: [],
+    pendingTournamentIds: [],
+    createdAt: serverTimestamp(),
+  });
+};
+
 export const createPlayer = async (name: string, tournamentId?: string) => {
   if (!name.trim()) throw new Error("Name cannot be empty.");
+  const nameLower = name.trim().toLowerCase();
+  // Prevent duplicate names (case-insensitive)
+  const existing = await getDocs(query(col, where("nameLower", "==", nameLower)));
+  if (!existing.empty) throw new Error(`Ya existe un jugador con el nombre "${name.trim()}".`);
   await addDoc(col, {
     name: name.trim(),
+    nameLower,
     tournamentIds: tournamentId ? [tournamentId] : [],
     pendingTournamentIds: [],
     createdAt: serverTimestamp(),
@@ -67,6 +95,34 @@ export const unenrollPlayerFromTournament = async (playerId: string, tournamentI
     tournamentIds: arrayRemove(tournamentId),
     pendingTournamentIds: arrayRemove(tournamentId),
   });
+
+export const leavePlayerFromTournament = async (
+  playerId: string,
+  tournamentId: string
+): Promise<void> => {
+  const [snapA, snapB] = await Promise.all([
+    getDocs(query(collection(db, "tournaments", tournamentId, "matches"), where("playerA.id", "==", playerId))),
+    getDocs(query(collection(db, "tournaments", tournamentId, "matches"), where("playerB.id", "==", playerId))),
+  ]);
+  const allMatchDocs = [...snapA.docs, ...snapB.docs];
+  const hasFinished = allMatchDocs.some((d) => d.data().isFinished);
+
+  if (hasFinished) {
+    // Find which group this player belongs to
+    const groupId = allMatchDocs.find((d) => d.data().groupId)?.data().groupId ?? null;
+    if (!groupId) throw new Error("No se encontró el grupo del jugador.");
+    const { withdrawPlayerFromGroup } = await import("@/services/groupService");
+    await withdrawPlayerFromGroup(tournamentId, groupId, playerId);
+  } else {
+    // No finished matches — clean removal
+    const groupId = allMatchDocs.find((d) => d.data().groupId)?.data().groupId ?? null;
+    if (groupId) {
+      const { removePlayerFromGroupWithMatches } = await import("@/services/groupService");
+      await removePlayerFromGroupWithMatches(tournamentId, groupId, playerId);
+    }
+    await unenrollPlayerFromTournament(playerId, tournamentId);
+  }
+};
 
 export const approvePlayerEnrollment = async (playerId: string, tournamentId: string) =>
   updateDoc(doc(db, "players", playerId), {

@@ -11,8 +11,8 @@ import { auth, db } from "./firebase";
 import type { AppUser, UserRole } from "@/types";
 
 export const checkDisplayNameTaken = async (displayName: string): Promise<boolean> => {
-  // Exact match — case sensitive ("Juan" !== "juan")
-  const snap = await getDocs(query(collection(db, "users"), where("displayName", "==", displayName)));
+  const normalized = displayName.trim().toLowerCase();
+  const snap = await getDocs(query(collection(db, "users"), where("displayNameLower", "==", normalized)));
   return !snap.empty;
 };
 
@@ -23,39 +23,46 @@ export const registerUser = async (
   role: UserRole = "player"
 ): Promise<string> => {
   const { user } = await createUserWithEmailAndPassword(auth, email, password);
-  await user.getIdToken(true); // force token refresh so Firestore rules see auth
-  console.log("[register] auth created:", user.uid);
+  await user.getIdToken(true);
   await updateProfile(user, { displayName });
-  console.log("[register] profile updated");
+
+  // Write user doc — if this fails the account exists in Auth but not Firestore
+  // getUserData will detect this and recreate it on next login
   await setDoc(doc(db, "users", user.uid), {
     uid: user.uid,
     email,
     displayName,
+    displayNameLower: displayName.trim().toLowerCase(),
     role,
     createdAt: serverTimestamp(),
   });
-  console.log("[register] users doc created");
+
   if (role === "player") {
-    const existing = await getDocs(
-      query(collection(db, "players"), where("name", "==", displayName))
-    );
-    console.log("[register] players query done, found:", existing.size);
-    const unlinked = existing.docs.find((d) => !d.data().userId);
-    if (unlinked) {
-      await updateDoc(unlinked.ref, { userId: user.uid });
-      console.log("[register] linked existing player");
-    } else {
-      await setDoc(doc(db, "players", user.uid), {
-        name: displayName,
-        userId: user.uid,
-        tournamentIds: [],
-        pendingTournamentIds: [],
-        createdAt: serverTimestamp(),
-      });
-      console.log("[register] new player doc created");
-    }
+    await linkOrCreatePlayer(user.uid, displayName);
   }
+
   return user.uid;
+};
+
+/** Links to an existing unlinked player by name (case-insensitive), or creates a new one. */
+const linkOrCreatePlayer = async (uid: string, displayName: string): Promise<void> => {
+  const normalized = displayName.trim().toLowerCase();
+  const snap = await getDocs(
+    query(collection(db, "players"), where("nameLower", "==", normalized))
+  );
+  const unlinked = snap.docs.find((d) => !d.data().userId);
+  if (unlinked) {
+    await updateDoc(unlinked.ref, { userId: uid });
+  } else {
+    await setDoc(doc(db, "players", uid), {
+      name: displayName.trim(),
+      nameLower: normalized,
+      userId: uid,
+      tournamentIds: [],
+      pendingTournamentIds: [],
+      createdAt: serverTimestamp(),
+    });
+  }
 };
 
 export const loginUser = (email: string, password: string) =>

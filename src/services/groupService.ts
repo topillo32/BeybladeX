@@ -3,7 +3,7 @@ import {
   doc, serverTimestamp, writeBatch, getDocs, query, where, arrayUnion,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Player, TournamentGroup } from "@/types";
+import type { Player, TournamentGroup, Match } from "@/types";
 
 const groupsCol = (tId: string) => collection(db, "tournaments", tId, "groups");
 
@@ -47,123 +47,151 @@ const getGroupPlayerIds = async (tId: string, gId: string): Promise<string[]> =>
 
 const MAX_PER_GROUP = 4;
 
-/**
- * Adds a late-arriving player to the group with the most room (< MAX_PER_GROUP).
- * If all groups are full, creates a new group.
- * Only creates the NEW matches for this player vs existing group members.
- * Existing matches are never touched.
- */
-export const addPlayerToGroupLive = async (
+export const addPlayerToGroupLiveWithPlayers = async (
   tournamentId: string,
   player: Player,
-  existingGroups: TournamentGroup[]
+  existingGroups: TournamentGroup[],
+  allPlayers: Player[],
+  maxPerGroup = 4
 ): Promise<void> => {
-  // Find group with fewest players that still has room
-  const available = existingGroups
-    .filter((g) => g.playerIds.length < MAX_PER_GROUP)
-    .sort((a, b) => a.playerIds.length - b.playerIds.length);
+  const [freshGroupsSnap, allMatchesSnap] = await Promise.all([
+    getDocs(groupsCol(tournamentId)),
+    getDocs(query(collection(db, "tournaments", tournamentId, "matches"), where("phase", "==", "GROUP"))),
+  ]);
+  const freshGroups = freshGroupsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as TournamentGroup));
+  const allGroupMatches = allMatchesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Match));
 
-  let targetGroup: TournamentGroup;
+  // ── Priority 1: replace a bye in a group whose round is not complete ──
+  for (const g of freshGroups) {
+    const groupMatches = allGroupMatches.filter((m) => m.groupId === g.id);
+    const roundComplete = groupMatches.length > 0 && groupMatches.every((m) => m.isFinished);
+    if (roundComplete) continue;
+
+    const byeIds = g.playerIds.filter((id) => id.startsWith("bye-"));
+    if (byeIds.length === 0) continue;
+
+    // Pick bye with fewest finished matches
+    const byeToReplace = [...byeIds].sort((a, b) => {
+      const finA = groupMatches.filter((m) => (m.playerA.id === a || m.playerB.id === a) && m.isFinished).length;
+      const finB = groupMatches.filter((m) => (m.playerA.id === b || m.playerB.id === b) && m.isFinished).length;
+      return finA - finB;
+    })[0];
+
+    await replaceByeWithPlayer(tournamentId, g.id, byeToReplace, player, [...allPlayers, player]);
+    return;
+  }
+
+  // ── Priority 2: group with open slot and round not complete ──
+  const available = freshGroups
+    .filter((g) => {
+      if (g.playerIds.length >= maxPerGroup) return false;
+      const groupMatches = allGroupMatches.filter((m) => m.groupId === g.id);
+      if (groupMatches.length === 0) return true;
+      return groupMatches.some((m) => !m.isFinished);
+    })
+    .sort((a, b) => b.playerIds.length - a.playerIds.length);
 
   if (available.length === 0) {
-    // All groups full → create a new one
-    const newName = `Group ${String.fromCharCode(65 + existingGroups.length)}`;
-    const ref = await addDoc(
+    const newName = `Group ${String.fromCharCode(65 + freshGroups.length)}`;
+    await addDoc(
       collection(db, "tournaments", tournamentId, "groups"),
       { name: newName, playerIds: [player.id], tournamentId, createdAt: serverTimestamp() }
     );
-    targetGroup = { id: ref.id, name: newName, playerIds: [], tournamentId } as unknown as TournamentGroup;
-    // No existing members to create matches against yet
     return;
-  } else {
-    targetGroup = available[0];
   }
 
-  // Add player to group
+  const targetGroup = available[0];
   await updateDoc(doc(db, "tournaments", tournamentId, "groups", targetGroup.id), {
     playerIds: arrayUnion(player.id),
   });
 
-  // Create only new matches: player vs each existing group member
   const matchesCol = collection(db, "tournaments", tournamentId, "matches");
   const batch = writeBatch(db);
-  for (const existingId of targetGroup.playerIds) {
-    // We need the full Player object — stored in matches, so we build a minimal one
-    // The caller passes allPlayers so we can look it up
+  for (const memberId of targetGroup.playerIds) {
+    const opponent = allPlayers.find((p) => p.id === memberId);
+    if (!opponent) continue;
     const ref = doc(matchesCol);
     batch.set(ref, {
-      tournamentId,
-      groupId: targetGroup.id,
-      phase: "GROUP",
-      round: null,
-      bracketPosition: null,
-      playerA: player,
-      playerB: { id: existingId, name: "" }, // placeholder, resolved below
-      playerAScore: 0,
-      playerBScore: 0,
-      isFinished: false,
-      winnerId: null,
-      history: [],
+      tournamentId, groupId: targetGroup.id, phase: "GROUP",
+      round: null, bracketPosition: null,
+      playerA: player, playerB: opponent,
+      playerAScore: 0, playerBScore: 0,
+      isFinished: false, winnerId: null, history: [],
       createdAt: serverTimestamp(),
     });
   }
   await batch.commit();
 };
 
-/**
- * Same as addPlayerToGroupLive but receives full Player objects for proper match creation.
- */
-export const addPlayerToGroupLiveWithPlayers = async (
+export const withdrawPlayerFromGroup = async (
   tournamentId: string,
-  player: Player,
-  existingGroups: TournamentGroup[],
-  allPlayers: Player[]
+  groupId: string,
+  playerId: string
 ): Promise<void> => {
-  const available = existingGroups
-    .filter((g) => g.playerIds.length < MAX_PER_GROUP)
-    .sort((a, b) => a.playerIds.length - b.playerIds.length);
+  const matchesCol = collection(db, "tournaments", tournamentId, "matches");
+  const [snapA, snapB] = await Promise.all([
+    getDocs(query(matchesCol, where("groupId", "==", groupId), where("playerA.id", "==", playerId))),
+    getDocs(query(matchesCol, where("groupId", "==", groupId), where("playerB.id", "==", playerId))),
+  ]);
 
-  let targetGroup: TournamentGroup;
-  let existingMemberIds: string[] = [];
+  const allDocs = [...snapA.docs, ...snapB.docs];
+  const hasFinished = allDocs.some((d) => d.data().isFinished);
 
-  if (available.length === 0) {
-    const newName = `Group ${String.fromCharCode(65 + existingGroups.length)}`;
-    await addDoc(
-      collection(db, "tournaments", tournamentId, "groups"),
-      { name: newName, playerIds: [player.id], tournamentId, createdAt: serverTimestamp() }
-    );
-    return; // new group with 1 player, no matches yet
+  const batch = writeBatch(db);
+  allDocs.forEach((d) => { if (!d.data().isFinished) batch.delete(d.ref); });
+
+  const groupRef = doc(db, "tournaments", tournamentId, "groups", groupId);
+  if (hasFinished) {
+    batch.update(groupRef, { withdrawnPlayerIds: arrayUnion(playerId) });
   } else {
-    targetGroup = available[0];
-    existingMemberIds = targetGroup.playerIds;
+    const ids = await getGroupPlayerIds(tournamentId, groupId);
+    batch.update(groupRef, { playerIds: ids.filter((id) => id !== playerId) });
   }
 
-  await updateDoc(doc(db, "tournaments", tournamentId, "groups", targetGroup.id), {
-    playerIds: arrayUnion(player.id),
+  await batch.commit();
+
+  const { unenrollPlayerFromTournament } = await import("@/services/playerService");
+  await unenrollPlayerFromTournament(playerId, tournamentId);
+};
+
+export const replaceByeWithPlayer = async (
+  tournamentId: string,
+  groupId: string,
+  byeId: string,
+  newPlayer: Player,
+  allPlayers: Player[]
+): Promise<void> => {
+  const matchesCol = collection(db, "tournaments", tournamentId, "matches");
+  const [snapA, snapB] = await Promise.all([
+    getDocs(query(matchesCol, where("groupId", "==", groupId), where("playerA.id", "==", byeId))),
+    getDocs(query(matchesCol, where("groupId", "==", groupId), where("playerB.id", "==", byeId))),
+  ]);
+
+  const batch = writeBatch(db);
+  [...snapA.docs, ...snapB.docs].forEach((d) => {
+    if (!d.data().isFinished) batch.delete(d.ref);
   });
 
-  const matchesCol = collection(db, "tournaments", tournamentId, "matches");
-  const batch = writeBatch(db);
-  for (const memberId of existingMemberIds) {
+  const ids = await getGroupPlayerIds(tournamentId, groupId);
+  batch.update(doc(db, "tournaments", tournamentId, "groups", groupId), {
+    playerIds: ids.map((id) => id === byeId ? newPlayer.id : id),
+  });
+
+  const realMemberIds = ids.filter((id) => id !== byeId && !id.startsWith("bye-"));
+  for (const memberId of realMemberIds) {
     const opponent = allPlayers.find((p) => p.id === memberId);
     if (!opponent) continue;
     const ref = doc(matchesCol);
     batch.set(ref, {
-      tournamentId,
-      groupId: targetGroup.id,
-      phase: "GROUP",
-      round: null,
-      bracketPosition: null,
-      playerA: player,
-      playerB: opponent,
-      playerAScore: 0,
-      playerBScore: 0,
-      isFinished: false,
-      winnerId: null,
-      history: [],
+      tournamentId, groupId, phase: "GROUP",
+      round: null, bracketPosition: null,
+      playerA: newPlayer, playerB: opponent,
+      playerAScore: 0, playerBScore: 0,
+      isFinished: false, winnerId: null, history: [],
       createdAt: serverTimestamp(),
     });
   }
+
   await batch.commit();
 };
 
@@ -173,35 +201,31 @@ export const removePlayerFromGroupWithMatches = async (
   playerId: string
 ): Promise<void> => {
   const matchesCol = collection(db, "tournaments", tId, "matches");
-
-  // Buscar matches no jugados de este jugador en este grupo
   const [snapA, snapB] = await Promise.all([
     getDocs(query(matchesCol, where("groupId", "==", gId), where("playerA.id", "==", playerId))),
     getDocs(query(matchesCol, where("groupId", "==", gId), where("playerB.id", "==", playerId))),
   ]);
 
   const batch = writeBatch(db);
-
-  // Eliminar solo los matches no finalizados
   [...snapA.docs, ...snapB.docs].forEach((d) => {
     if (!d.data().isFinished) batch.delete(d.ref);
   });
 
-  // Quitar del grupo
   const ids = await getGroupPlayerIds(tId, gId);
   batch.update(doc(db, "tournaments", tId, "groups", gId), {
     playerIds: ids.filter((id) => id !== playerId),
   });
 
   await batch.commit();
+
+  if (!playerId.startsWith("bye-")) {
+    const { unenrollPlayerFromTournament } = await import("@/services/playerService");
+    await unenrollPlayerFromTournament(playerId, tId);
+  }
 };
 
 const countByes = (playerIds: string[]) => playerIds.filter((id) => id.startsWith("bye-")).length;
 
-/**
- * Fills an incomplete group with bye players (auto-lose).
- * Max 3 byes per group. Byes get id "bye-{groupId}-{n}".
- */
 export const fillGroupWithByes = async (
   tournamentId: string,
   group: TournamentGroup,
@@ -224,23 +248,15 @@ export const fillGroupWithByes = async (
 
   batch.update(groupRef, { playerIds: [...group.playerIds, ...newByePlayers.map((b) => b.id)] });
 
-  // Solo creamos matches: cada nuevo bye vs cada jugador real (no bye vs bye)
   for (const bye of newByePlayers) {
     for (const real of realPlayers) {
       const ref = doc(matchesCol);
       batch.set(ref, {
-        tournamentId,
-        groupId: group.id,
-        phase: "GROUP",
-        round: null,
-        bracketPosition: null,
-        playerA: real,
-        playerB: bye,
-        playerAScore: 0,
-        playerBScore: 0,
-        isFinished: false,
-        winnerId: null,
-        history: [],
+        tournamentId, groupId: group.id, phase: "GROUP",
+        round: null, bracketPosition: null,
+        playerA: real, playerB: bye,
+        playerAScore: 0, playerBScore: 0,
+        isFinished: false, winnerId: null, history: [],
         createdAt: serverTimestamp(),
       });
     }
@@ -254,13 +270,11 @@ export const generateGroups = async (
   players: Player[],
   playersPerGroup: number
 ): Promise<TournamentGroup[]> => {
-  // Borrar grupos existentes
   const existing = await getDocs(groupsCol(tournamentId));
   const batch = writeBatch(db);
   existing.docs.forEach((d) => batch.delete(d.ref));
   await batch.commit();
 
-  // Mezclar jugadores
   const shuffled = [...players].sort(() => Math.random() - 0.5);
   const groupCount = Math.ceil(shuffled.length / playersPerGroup);
 
