@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className={`${orbitron.variable} bg-[#030712] bg-grid text-white`}>
+      <body className={`${orbitron.variable} bg-[#0f766e] bg-grid text-white`}>
         <LangProvider>
           <AuthProvider>{children}</AuthProvider>
         </LangProvider>

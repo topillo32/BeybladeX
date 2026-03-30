@@ -44,7 +44,7 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className={`flex flex-col bg-[#050d1a] border-r border-white/5 transition-all duration-300 ${collapsed ? "w-16" : "w-56"} shrink-0`}>
+    <aside className={`flex flex-col border-r border-white/5 transition-all duration-300 ${collapsed ? "w-16" : "w-56"} shrink-0`} style={{ background: "rgba(15, 23, 42, 0.7)" }}>
       {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-white/5 gap-3">
         <div className="relative w-8 h-8 shrink-0">

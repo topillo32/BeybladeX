@@ -1,8 +1,10 @@
 {
-  "/page": "app/page.js",
   "/auth/page": "app/auth/page.js",
-  "/(public)/t/page": "app/(public)/t/page.js",
-  "/(public)/t/[tournamentId]/page": "app/(public)/t/[tournamentId]/page.js",
+  "/(admin)/tournaments/page": "app/(admin)/tournaments/page.js",
   "/(admin)/dashboard/page": "app/(admin)/dashboard/page.js",
-  "/(admin)/tournaments/[tournamentId]/page": "app/(admin)/tournaments/[tournamentId]/page.js"
+  "/(admin)/users/page": "app/(admin)/users/page.js",
+  "/(admin)/tournaments/[tournamentId]/page": "app/(admin)/tournaments/[tournamentId]/page.js",
+  "/(admin)/leagues/page": "app/(admin)/leagues/page.js",
+  "/(admin)/players/page": "app/(admin)/players/page.js",
+  "/(admin)/parts/page": "app/(admin)/parts/page.js"
 }

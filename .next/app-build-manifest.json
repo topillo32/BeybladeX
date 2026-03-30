@@ -21,11 +21,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(public)/layout.js"
     ],
-    "/(public)/t/[tournamentId]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(public)/t/[tournamentId]/page.js"
-    ],
     "/auth/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -40,6 +35,31 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(admin)/layout.js"
+    ],
+    "/(admin)/tournaments/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/tournaments/page.js"
+    ],
+    "/(admin)/leagues/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/leagues/page.js"
+    ],
+    "/(admin)/players/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/players/page.js"
+    ],
+    "/(admin)/parts/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/parts/page.js"
+    ],
+    "/(admin)/users/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/users/page.js"
     ],
     "/(admin)/tournaments/[tournamentId]/page": [
       "static/chunks/webpack.js",

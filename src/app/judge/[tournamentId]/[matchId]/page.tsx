@@ -30,13 +30,13 @@ export default function JudgePage({ params }: { params: { tournamentId: string; 
   }, [tournamentId, matchId, user, isStaff]);
 
   if (authLoading || matchLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#030712]">
+    <div className="min-h-screen flex items-center justify-center bg-[#0f766e]">
       <Spinner size={12} />
     </div>
   );
 
   if (!match) return (
-    <div className="min-h-screen flex items-center justify-center text-gray-400 font-gaming text-sm bg-[#030712]">
+    <div className="min-h-screen flex items-center justify-center text-gray-400 font-gaming text-sm bg-[#0f766e]">
       Partida no encontrada.
     </div>
   );
@@ -45,7 +45,7 @@ export default function JudgePage({ params }: { params: { tournamentId: string; 
   // The group's judgeId is not on the match doc, but we pass callerUid + isAdmin
   // so the backend transaction validates it. UI will show lock if not judge.
   return (
-    <div className="min-h-screen bg-[#030712] bg-grid flex items-start justify-center px-4 py-8">
+    <div className="min-h-screen bg-[#0f766e] bg-grid flex items-start justify-center px-4 py-8">
       <div className="w-full max-w-md space-y-4">
         <div className="text-center">
           <p className="font-gaming text-xs tracking-widest text-gray-500 mb-1">⚖️ PANEL DE JUEZ</p>

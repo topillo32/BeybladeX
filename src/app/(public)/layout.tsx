@@ -3,8 +3,8 @@ import Link from "next/link";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#030712] bg-grid">
-      <header className="sticky top-0 z-50 bg-[#030712]/90 backdrop-blur-md border-b border-white/5">
+    <div className="min-h-screen bg-[#0f766e] bg-grid">
+      <header className="sticky top-0 z-50 bg-[#0f766e]/90 backdrop-blur-md border-b border-white/5">
         <nav className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <span className="text-lg">🌀</span>
