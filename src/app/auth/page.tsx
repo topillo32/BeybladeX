@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser, registerUser, getUserData, checkDisplayNameTaken } from "@/services/authService";
+import { loginUser, registerUser, getUserData, checkDisplayNameTaken, resetPassword } from "@/services/authService";
 import { useLang } from "@/lib/LangContext";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -16,7 +16,7 @@ const validatePassword = (pw: string): string | null => {
 
 export default function AuthPage() {
   const { t, lang, setLang } = useLang();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "reset">("login");
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
@@ -24,6 +24,7 @@ export default function AuthPage() {
   const [error, setError]       = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading]   = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const router = useRouter();
 
   const validate = (): boolean => {
@@ -54,6 +55,12 @@ export default function AuthPage() {
 
     setLoading(true);
     try {
+      if (mode === "reset") {
+        if (!EMAIL_RE.test(email)) { setFieldErrors({ email: "Correo electrónico inválido" }); return; }
+        await resetPassword(email);
+        setResetSent(true);
+        return;
+      }
       if (mode === "login") {
         const cred = await loginUser(email, password);
         const userData = await getUserData(cred.user.uid);
@@ -120,7 +127,7 @@ export default function AuthPage() {
           {/* Mode tabs */}
           <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
             {(["login", "register"] as const).map((m) => (
-              <button key={m} onClick={() => { setMode(m); setError(null); setFieldErrors({}); }}
+              <button key={m} onClick={() => { setMode(m); setError(null); setFieldErrors({}); setResetSent(false); }}
                 className={`flex-1 py-2 rounded-lg font-gaming text-xs tracking-widest transition-all
                   ${mode === m ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
                 {m === "login" ? t("login") : t("register")}
@@ -128,6 +135,45 @@ export default function AuthPage() {
             ))}
           </div>
 
+          {/* Reset password */}
+          {mode === "reset" && (
+            <div className="space-y-3">
+              {resetSent ? (
+                <div className="text-center space-y-3 py-2">
+                  <p className="text-3xl">📧</p>
+                  <p className="text-white font-semibold text-sm">Revisa tu correo</p>
+                  <p className="text-gray-400 text-xs">Enviamos un enlace a <span className="text-cyan-400">{email}</span></p>
+                  <button onClick={() => { setMode("login"); setResetSent(false); setEmail(""); }}
+                    className="text-cyan-500 hover:underline text-xs font-gaming tracking-wider">
+                    ← Volver al inicio de sesión
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-gray-400 text-xs text-center">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
+                  <div>
+                    <input type="email" value={email}
+                      onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: "" })); }}
+                      placeholder={t("email")}
+                      className={`input-base ${fe.email ? "border-red-500/50" : ""}`}
+                      required />
+                    {fe.email && <p className="text-red-400 text-xs mt-1 pl-1">{fe.email}</p>}
+                  </div>
+                  {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+                  <button onClick={handleSubmit as any} disabled={loading}
+                    className="btn-primary w-full font-gaming text-sm tracking-wider">
+                    {loading ? "..." : "Enviar enlace"}
+                  </button>
+                  <button onClick={() => { setMode("login"); setError(null); setFieldErrors({}); }}
+                    className="w-full text-center text-gray-500 hover:text-gray-300 text-xs transition-colors">
+                    ← Volver
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {mode !== "reset" && (
           <form onSubmit={handleSubmit} className="space-y-3">
             {mode === "register" && (
               <div>
@@ -189,7 +235,15 @@ export default function AuthPage() {
             <button type="submit" disabled={loading} className="btn-primary w-full font-gaming text-sm tracking-wider">
               {loading ? "..." : mode === "login" ? t("signIn") : t("createAccount")}
             </button>
+
+            {mode === "login" && (
+              <button type="button" onClick={() => { setMode("reset"); setError(null); setFieldErrors({}); setResetSent(false); }}
+                className="w-full text-center text-gray-500 hover:text-cyan-400 text-xs transition-colors">
+                ¿Olvidaste tu contraseña?
+              </button>
+            )}
           </form>
+          )}
         </div>
 
         <p className="text-center text-gray-600 text-xs">

@@ -247,19 +247,53 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
 
           <div className="animate-fade-in" key={tab}>
             {tab === "overview" && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                  { label: t("players"),    value: players.length,    icon: "👤" },
-                  { label: t("groups"),     value: groups.length,     icon: "👥" },
-                  { label: t("matches"),    value: matches.length,    icon: "⚔️" },
-                  { label: t("qualifiers"), value: tournament.status === "GROUP_STAGE" ? autoCount : (tournament.qualifiersCount || t("tbd")), icon: "🏆" },
-                ].map((s) => (
-                  <div key={s.label} className="card card-cyan p-4 text-center space-y-1">
-                    <p className="text-2xl">{s.icon}</p>
-                    <p className="font-gaming text-3xl font-black text-cyan-400">{s.value}</p>
-                    <p className="text-gray-400 text-xs">{s.label}</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: t("players"),    value: players.length,    icon: "👤" },
+                    { label: t("groups"),     value: groups.length,     icon: "👥" },
+                    { label: t("matches"),    value: matches.length,    icon: "⚔️" },
+                    { label: t("qualifiers"), value: tournament.status === "GROUP_STAGE" ? autoCount : (tournament.qualifiersCount || t("tbd")), icon: "🏆" },
+                  ].map((s) => (
+                    <div key={s.label} className="card card-cyan p-4 text-center space-y-1">
+                      <p className="text-2xl">{s.icon}</p>
+                      <p className="font-gaming text-3xl font-black text-cyan-400">{s.value}</p>
+                      <p className="text-gray-400 text-xs">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {tournament.status === "REGISTRATION" && (
+                  <div className="card overflow-hidden">
+                    <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
+                      <p className="section-title mb-0">👤 Jugadores inscritos</p>
+                      <span className="font-gaming text-xs text-cyan-400">{players.length} / {tournament.maxPlayers}</span>
+                    </div>
+                    {players.length === 0 ? (
+                      <div className="px-5 py-8 text-center">
+                        <p className="text-gray-500 text-sm">Aún no hay jugadores inscritos</p>
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-white/5">
+                        {players.map((p, i) => (
+                          <li key={p.id} className="flex items-center justify-between px-5 py-3 hover:bg-white/3 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <span className="font-gaming text-xs text-gray-500 w-5 text-right">{i + 1}</span>
+                              <span className="font-medium text-white">{p.name}</span>
+                            </div>
+                            {isStaff && (
+                              <button
+                                onClick={() => { if (confirm(`¿Desinscribir a ${p.name}?`)) run(() => unenrollPlayerFromTournament(p.id, tournamentId)); }}
+                                className="text-gray-600 hover:text-red-400 transition-colors text-xs font-gaming">
+                                ✕
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                ))}
+                )}
               </div>
             )}
 

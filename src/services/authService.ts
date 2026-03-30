@@ -5,6 +5,7 @@ import {
   onAuthStateChanged,
   User,
   updateProfile,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, getDocs, collection, query, orderBy, where, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
@@ -67,6 +68,9 @@ const linkOrCreatePlayer = async (uid: string, displayName: string): Promise<voi
 
 export const loginUser = (email: string, password: string) =>
   signInWithEmailAndPassword(auth, email, password);
+
+export const resetPassword = (email: string) =>
+  sendPasswordResetEmail(auth, email);
 
 export const logoutUser = () => signOut(auth);
 
