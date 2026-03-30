@@ -44,18 +44,18 @@ export default function UsersPage() {
         <div className="card overflow-hidden">
           <ul className="divide-y divide-white/5">
             {users.map((u) => (
-              <li key={u.uid} className="flex items-center justify-between px-5 py-4 hover:bg-white/3 transition-colors gap-4">
+              <li key={u.uid} className="flex items-center justify-between px-4 py-3.5 hover:bg-white/3 transition-colors gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-white truncate">{u.displayName}</p>
-                  <p className="text-gray-500 text-xs truncate">{u.email}</p>
+                  <p className="font-medium text-white truncate text-sm">{u.displayName}</p>
+                  <p className="text-white/50 text-xs truncate hidden sm:block">{u.email}</p>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <RoleBadge role={u.role} />
                   <select
                     value={u.role}
                     disabled={updating === u.uid}
                     onChange={(e) => handleRoleChange(u.uid, e.target.value as UserRole)}
-                    className="bg-white/5 border border-white/10 text-gray-300 text-xs font-gaming rounded-lg px-2 py-1.5 outline-none focus:border-cyan-500/50 disabled:opacity-50 cursor-pointer"
+                    className="bg-white/5 border border-white/10 text-white text-xs font-gaming rounded-lg px-2 py-1.5 outline-none focus:border-cyan-500/50 disabled:opacity-50 cursor-pointer"
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r} className="bg-[#050d1a]">{r}</option>

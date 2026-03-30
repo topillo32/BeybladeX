@@ -42,7 +42,7 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
 
   return (
     <div className="page-wrapper">
-      <div className={`w-full space-y-6 ${tab === "bracket" ? "" : "max-w-4xl"}`}>
+      <div className={`w-full space-y-6 px-2 sm:px-0 ${tab === "bracket" ? "" : "max-w-4xl"}`}>
         <div>
           <Link href="/player/tournaments" className="text-gray-500 hover:text-cyan-400 text-sm transition-colors">
             ← {t("availableTournaments")}
@@ -58,12 +58,13 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 p-1 bg-white/5 rounded-xl overflow-x-auto">
+        <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
           {TABS.map((tb) => (
             <button key={tb.key} onClick={() => setTab(tb.key)}
-              className={`flex-1 py-2.5 rounded-lg font-gaming text-xs tracking-wider whitespace-nowrap transition-all min-w-fit px-2
-                ${tab === tb.key ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
-              {tb.icon} {tb.label}
+              className={`flex-1 py-2.5 rounded-lg font-gaming text-xs tracking-wider transition-all
+                ${tab === tb.key ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-white hover:bg-white/5"}`}>
+              <span className="text-base">{tb.icon}</span>
+              <span className="hidden sm:inline ml-1">{tb.label}</span>
             </button>
           ))}
         </div>

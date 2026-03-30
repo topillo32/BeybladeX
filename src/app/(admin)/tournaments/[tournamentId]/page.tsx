@@ -43,6 +43,8 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const [error, setError] = useState<string | null>(null);
   const [enrollSearch, setEnrollSearch] = useState("");
   const [staffUsers, setStaffUsers] = useState<AppUser[]>([]);
+  const [showStepper, setShowStepper] = useState(false);
+  const [showAddPlayers, setShowAddPlayers] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -152,20 +154,28 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
         </div>
       )}
 
-      <div className="w-full flex gap-6 items-start px-4 py-6 max-w-screen-2xl mx-auto">
+      <div className="w-full flex flex-col lg:flex-row gap-6 items-start px-2 sm:px-4 py-6 max-w-screen-2xl mx-auto">
 
         {/* ── Sidebar izquierdo ── */}
-        <aside className="w-72 shrink-0 space-y-4 sticky top-6">
+        <aside className="w-full lg:w-72 lg:shrink-0 space-y-4 lg:sticky lg:top-6">
           <div>
-            <Link href="/tournaments" className="text-gray-500 hover:text-cyan-400 text-sm transition-colors">{t("back")}</Link>
+            <Link href="/tournaments" className="text-white hover:text-cyan-400 text-sm transition-colors">{t("back")}</Link>
             <div className="flex items-center gap-2 mt-2">
               <h1 className="font-gaming text-lg font-black tracking-widest text-white flex-1 leading-tight">{tournament.name}</h1>
               <StatusBadge status={tournament.status} />
             </div>
           </div>
 
-          <div className="card p-3">
-            <TournamentStepper status={tournament.status} />
+          {/* Stepper — acordeón en móvil, siempre visible en desktop */}
+          <div className="card overflow-hidden">
+            <button onClick={() => setShowStepper(!showStepper)}
+              className="w-full flex items-center justify-between px-4 py-3 lg:hidden">
+              <span className="font-gaming text-xs tracking-widest text-white">📋 Fase del torneo</span>
+              <span className="text-white text-xs">{showStepper ? "▲" : "▼"}</span>
+            </button>
+            <div className={`p-3 ${showStepper ? "block" : "hidden"} lg:block`}>
+              <TournamentStepper status={tournament.status} />
+            </div>
           </div>
 
           {isStaff && tournament.status === "GROUP_STAGE" && pendingPlayers.length > 0 && (
@@ -185,42 +195,49 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
             </div>
           )}
 
+          {/* Añadir jugadores — acordeón en móvil */}
           {isStaff && OPEN_REG.includes(tournament.status) && (
-            <div className="card p-4 space-y-3">
-              <p className="section-title text-xs">➕ {t("addPlayers")}</p>
-              <input type="text" value={enrollSearch} onChange={(e) => setEnrollSearch(e.target.value)}
-                placeholder={t("searchPlayer")} className="input-base text-xs" />
-              {(() => {
-                const filtered = unenrolledPlayers.filter((p) =>
-                  p.name.toLowerCase().includes(enrollSearch.toLowerCase())
-                );
-                if (filtered.length === 0) return <p className="text-gray-500 text-xs text-center py-1">{t("noPlayersAvailable")}</p>;
-                return (
-                  <ul className="divide-y divide-white/5 max-h-52 overflow-y-auto">
-                    {filtered.map((p) => (
-                      <li key={p.id} className="flex items-center justify-between py-1.5 gap-2">
-                        <span className="text-white text-xs truncate">{p.name}</span>
-                        <button onClick={() => handleEnroll(p.id)}
-                          className="btn-primary text-xs py-1 px-2 font-gaming shrink-0">
-                          +
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                );
-              })()}
+            <div className="card overflow-hidden">
+              <button onClick={() => setShowAddPlayers(!showAddPlayers)}
+                className="w-full flex items-center justify-between px-4 py-3">
+                <span className="font-gaming text-xs tracking-widest text-white">➕ {t("addPlayers")}</span>
+                <span className="text-white text-xs">{showAddPlayers ? "▲" : "▼"}</span>
+              </button>
+              {showAddPlayers && (
+                <div className="px-4 pb-4 space-y-3 border-t border-white/5">
+                  <input type="text" value={enrollSearch} onChange={(e) => setEnrollSearch(e.target.value)}
+                    placeholder={t("searchPlayer")} className="input-base text-xs mt-3" />
+                  {(() => {
+                    const filtered = unenrolledPlayers.filter((p) =>
+                      p.name.toLowerCase().includes(enrollSearch.toLowerCase())
+                    );
+                    if (filtered.length === 0) return <p className="text-white text-xs text-center py-1">{t("noPlayersAvailable")}</p>;
+                    return (
+                      <ul className="divide-y divide-white/5 max-h-52 overflow-y-auto">
+                        {filtered.map((p) => (
+                          <li key={p.id} className="flex items-center justify-between py-1.5 gap-2">
+                            <span className="text-white text-xs truncate">{p.name}</span>
+                            <button onClick={() => handleEnroll(p.id)}
+                              className="btn-primary text-xs py-1 px-2 font-gaming shrink-0">+</button>
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
 
           {isAdmin && tournament.status === "GROUP_STAGE" && (
             <div className="card p-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-gray-400 text-xs">{t("howManyQualify")}</p>
-                <p className="text-gray-500 text-xs">{globalStandings.length} {t("playersInStandings")}</p>
+                <p className="text-white text-xs">{t("howManyQualify")}</p>
+                <p className="text-white text-xs">{globalStandings.length} {t("playersInStandings")}</p>
               </div>
               <div className="text-center shrink-0">
                 <p className="font-gaming text-2xl font-black text-cyan-400">{autoCount}</p>
-                <p className="text-gray-500 text-xs font-gaming">{t("auto")}</p>
+                <p className="text-white text-xs font-gaming">{t("auto")}</p>
               </div>
             </div>
           )}
@@ -234,13 +251,14 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
         </aside>
 
         {/* ── Contenido principal ── */}
-        <div className="flex-1 min-w-0 space-y-4">
-          <div className="flex gap-1 p-1 bg-white/5 rounded-xl overflow-x-auto">
+        <div className="w-full min-w-0 space-y-4">
+          <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
             {TABS.map((tb) => (
               <button key={tb.key} onClick={() => setTab(tb.key)}
-                className={`flex-1 py-2.5 rounded-lg font-gaming text-xs tracking-wider whitespace-nowrap transition-all min-w-fit px-2
-                  ${tab === tb.key ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
-                {tb.icon} {tb.label}
+                className={`flex-1 py-2.5 rounded-lg font-gaming text-xs tracking-wider transition-all
+                  ${tab === tb.key ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-white hover:bg-white/5"}`}>
+                <span className="text-base">{tb.icon}</span>
+                <span className="hidden sm:inline ml-1">{tb.label}</span>
               </button>
             ))}
           </div>

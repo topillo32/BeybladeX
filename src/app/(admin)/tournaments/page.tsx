@@ -52,7 +52,14 @@ export default function TournamentsPage() {
 
   const filtered = filter === "ALL" ? tournaments : tournaments.filter((tournament) => tournament.status === filter);
 
-  const STATUS_FILTERS = ["ALL", "DRAFT", "REGISTRATION", "GROUP_STAGE", "KNOCKOUT", "FINISHED"] as const;
+  const STATUS_FILTERS = [
+    { key: "ALL",         icon: "🔍" },
+    { key: "DRAFT",       icon: "⚙️" },
+    { key: "REGISTRATION",icon: "📋" },
+    { key: "GROUP_STAGE", icon: "👥" },
+    { key: "KNOCKOUT",    icon: "⚔️" },
+    { key: "FINISHED",    icon: "✅" },
+  ] as const;
 
   return (
     <div className="page-wrapper">
@@ -116,12 +123,13 @@ export default function TournamentsPage() {
           </div>
         )}
 
-        <div className="flex gap-1 p-1 bg-white/5 rounded-xl overflow-x-auto">
-          {STATUS_FILTERS.map((s) => (
-            <button key={s} onClick={() => setFilter(s)}
-              className={`flex-1 py-2 rounded-lg font-gaming text-xs tracking-wider whitespace-nowrap transition-all min-w-fit px-3
-                ${filter === s ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
-              {s === "ALL" ? t("all") : t(s as any)}
+        <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
+          {STATUS_FILTERS.map(({ key, icon }) => (
+            <button key={key} onClick={() => setFilter(key as any)}
+              className={`flex-1 py-2 rounded-lg font-gaming text-xs tracking-wider transition-all
+                ${filter === key ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-white hover:bg-white/5"}`}>
+              <span>{icon}</span>
+              <span className="hidden sm:inline ml-1">{key === "ALL" ? t("all") : t(key as any)}</span>
             </button>
           ))}
         </div>
@@ -142,19 +150,23 @@ export default function TournamentsPage() {
           <div className="card overflow-hidden">
             <ul className="divide-y divide-white/5">
               {filtered.map((tournament) => (
-                <li key={tournament.id} className="flex items-center justify-between px-5 py-4 hover:bg-white/3 transition-colors">
-                  <div className="flex items-center gap-3 min-w-0">
+                <li key={tournament.id} className="flex items-center justify-between px-4 py-3.5 hover:bg-white/3 transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
                     <StatusBadge status={tournament.status} />
-                    <Link href={`/tournaments/${tournament.id}`} className="font-semibold text-white hover:text-cyan-400 transition-colors truncate">
+                    <Link href={`/tournaments/${tournament.id}`} className="font-semibold text-white hover:text-cyan-400 transition-colors truncate text-sm">
                       {tournament.name}
                     </Link>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
                     <Link href={`/tournaments/${tournament.id}`} className="btn-primary text-xs py-1.5 px-3 font-gaming tracking-wider">
-                      {t("manage")}
+                      <span className="hidden sm:inline">{t("manage")}</span>
+                      <span className="sm:hidden">→</span>
                     </Link>
                     {isAdmin && (
-                      <button onClick={() => handleDelete(tournament.id)} className="btn-danger py-1.5">{t("remove")}</button>
+                      <button onClick={() => handleDelete(tournament.id)} className="btn-danger py-1.5 px-2">
+                        <span className="hidden sm:inline">{t("remove")}</span>
+                        <span className="sm:hidden">🗑️</span>
+                      </button>
                     )}
                   </div>
                 </li>

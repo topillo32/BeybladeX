@@ -26,7 +26,7 @@ export default function PlayerLayout({ children }: { children: React.ReactNode }
   if (!user || user.role !== "player") return null;
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex flex-col md:flex-row md:h-screen md:overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-y-auto bg-[#0f766e] bg-grid">
         {children}
