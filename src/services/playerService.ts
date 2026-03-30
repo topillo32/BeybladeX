@@ -79,22 +79,37 @@ export const enrollPlayerInTournament = async (
   tournamentStatus: string
 ) => {
   await ensureArrayFields(playerId);
+  const playerSnap = await getDoc(doc(db, "players", playerId));
+  const playerName = playerSnap.data()?.name ?? "";
   if (tournamentStatus === "GROUP_STAGE") {
     await updateDoc(doc(db, "players", playerId), {
       pendingTournamentIds: arrayUnion(tournamentId),
     });
   } else {
-    await updateDoc(doc(db, "players", playerId), {
-      tournamentIds: arrayUnion(tournamentId),
-    });
+    await Promise.all([
+      updateDoc(doc(db, "players", playerId), {
+        tournamentIds: arrayUnion(tournamentId),
+      }),
+      updateDoc(doc(db, "tournaments", tournamentId), {
+        registeredPlayerNames: arrayUnion(playerName),
+      }),
+    ]);
   }
 };
 
-export const unenrollPlayerFromTournament = async (playerId: string, tournamentId: string) =>
-  updateDoc(doc(db, "players", playerId), {
-    tournamentIds: arrayRemove(tournamentId),
-    pendingTournamentIds: arrayRemove(tournamentId),
-  });
+export const unenrollPlayerFromTournament = async (playerId: string, tournamentId: string) => {
+  const playerSnap = await getDoc(doc(db, "players", playerId));
+  const playerName = playerSnap.data()?.name ?? "";
+  await Promise.all([
+    updateDoc(doc(db, "players", playerId), {
+      tournamentIds: arrayRemove(tournamentId),
+      pendingTournamentIds: arrayRemove(tournamentId),
+    }),
+    updateDoc(doc(db, "tournaments", tournamentId), {
+      registeredPlayerNames: arrayRemove(playerName),
+    }),
+  ]);
+};
 
 export const leavePlayerFromTournament = async (
   playerId: string,

@@ -158,6 +158,9 @@ export const translations = {
     inProgress: "In Progress",
     finishedTournaments: "Finished",
     noTournamentsInProgress: "No active tournaments",
+    participants: "Participants",
+    noParticipantsYet: "No participants yet",
+    registrationOpen: "Registration open",
   },
   es: {
     // Nav
@@ -318,6 +321,9 @@ export const translations = {
     inProgress: "En Curso",
     finishedTournaments: "Finalizados",
     noTournamentsInProgress: "No hay torneos activos",
+    participants: "Participantes",
+    noParticipantsYet: "Aún no hay participantes inscritos",
+    registrationOpen: "Registro abierto",
   },
 } as const;
 

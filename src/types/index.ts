@@ -46,10 +46,11 @@ export interface Tournament {
   name: string;
   status: TournamentStatus;
   eventType: EventType;
-  leagueId?: string;          // only when eventType === "league_event"
+  leagueId?: string;
   maxPlayers: number;
   playersPerGroup: number;
   qualifiersCount: number;
+  registeredPlayerNames?: string[]; // public snapshot — updated on enroll/unenroll
   createdBy: string;
   createdAt: Timestamp;
   startedAt?: Timestamp;

@@ -20,8 +20,8 @@ service cloud.firestore {
     // ── Players ───────────────────────────────────────────────────────────────
     match /players/{playerId} {
       allow read:   if isAuth();
-      allow create: if isAuth();  // user creates own player on register
-      allow update: if isAuth();  // linking existing player also needs auth only
+      allow create: if isAuth();
+      allow update: if isAuth();
       allow delete: if isAdmin();
     }
 
