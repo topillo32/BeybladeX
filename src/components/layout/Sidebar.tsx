@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 import { useAuthContext } from "@/lib/AuthContext";
 import { logoutUser } from "@/services/authService";
 import { RoleBadge } from "@/components/ui/Badges";
@@ -51,13 +52,9 @@ export const Sidebar = () => {
       {/* ── MOBILE: top navbar ── */}
       <header className="md:hidden sticky top-0 z-50 border-b border-white/5 backdrop-blur-md" style={navStyle}>
         <div className="flex items-center justify-between px-4 h-14">
-          {/* Logo */}
+          {/* Logo mobile */}
           <div className="flex items-center gap-2">
-            <div className="relative w-7 h-7 shrink-0">
-              <div className="absolute inset-0 rounded-full border-2 border-cyan-400/50 animate-spin-slow" />
-              <div className="absolute inset-1.5 rounded-full border border-purple-400/50 animate-spin-reverse" />
-              <div className="absolute inset-0 flex items-center justify-center text-xs">🌀</div>
-            </div>
+            <Image src="/logo.jpeg" alt="Logo" width={28} height={28} className="rounded-full object-cover shrink-0" />
             <span className="font-gaming font-bold tracking-widest text-xs text-white">
               BEYBLADE<span className="text-cyan-400">X</span> PAC
             </span>
@@ -107,13 +104,9 @@ export const Sidebar = () => {
 
       {/* ── DESKTOP: sidebar lateral ── */}
       <aside className={`hidden md:flex flex-col border-r border-white/5 transition-all duration-300 ${collapsed ? "w-16" : "w-56"} shrink-0`} style={navStyle}>
-        {/* Logo */}
+        {/* Logo desktop */}
         <div className="h-16 flex items-center px-4 border-b border-white/5 gap-3">
-          <div className="relative w-8 h-8 shrink-0">
-            <div className="absolute inset-0 rounded-full border-2 border-cyan-400/50 animate-spin-slow" />
-            <div className="absolute inset-1.5 rounded-full border border-purple-400/50 animate-spin-reverse" />
-            <div className="absolute inset-0 flex items-center justify-center text-sm">🌀</div>
-          </div>
+          <Image src="/logo.jpeg" alt="Logo" width={32} height={32} className="rounded-full object-cover shrink-0" />
           {!collapsed && (
             <span className="font-gaming font-bold tracking-widest text-sm text-white">
               BEYBLADE<span className="text-cyan-400">X</span> PAC

@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { loginUser, registerUser, getUserData, checkDisplayNameTaken, resetPassword } from "@/services/authService";
 import { useLang } from "@/lib/LangContext";
 
@@ -101,9 +102,7 @@ export default function AuthPage() {
         {/* Logo */}
         <div className="text-center space-y-2">
           <div className="relative w-16 h-16 mx-auto animate-float">
-            <div className="absolute inset-0 rounded-full border-2 border-cyan-400/50 animate-spin-slow" />
-            <div className="absolute inset-2 rounded-full border border-purple-400/50 animate-spin-reverse" />
-            <div className="absolute inset-0 flex items-center justify-center text-3xl">🌀</div>
+            <Image src="/logo.jpeg" alt="Logo" width={64} height={64} className="rounded-full object-cover w-full h-full" />
           </div>
           <h1 className="font-gaming text-2xl font-black tracking-widest animate-pulse-glow">
             BEYBLADE<span className="text-cyan-400">X</span> PAC

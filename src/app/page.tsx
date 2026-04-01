@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useLang } from "@/lib/LangContext";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function RootPage() {
   const { user, loading } = useAuthContext();
@@ -31,10 +32,7 @@ export default function RootPage() {
 
       <div className="relative z-10 flex flex-col items-center gap-8 text-center max-w-lg w-full animate-fade-in">
         <div className="relative w-24 h-24 animate-float">
-          <div className="absolute inset-0 rounded-full border-[3px] border-cyan-400/40 animate-spin-slow" />
-          <div className="absolute inset-2.5 rounded-full border-2 border-purple-400/40 animate-spin-reverse" />
-          <div className="absolute inset-5 rounded-full border border-amber-400/40 animate-spin-slow" />
-          <div className="absolute inset-0 flex items-center justify-center text-4xl">🌀</div>
+          <Image src="/logo.jpeg" alt="Logo" width={96} height={96} className="rounded-full object-cover w-full h-full ring-2 ring-cyan-400/40" />
         </div>
 
         <div className="space-y-2">

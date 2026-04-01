@@ -10,6 +10,8 @@ interface Props {
   editable?: boolean;
   onDelete?: (id: string) => void;
   tournamentId: string;
+  tournamentStatus?: string;
+  allMatches?: Match[]; // para detectar si hay fases posteriores
   judgeId?: string;
   callerUid?: string;
   isAdmin?: boolean;
@@ -23,7 +25,7 @@ const FINISH_STYLES: Record<FinishType, string> = {
   XTREME: "border-red-500/30 text-red-300 bg-red-500/10 hover:bg-red-500/20",
 };
 
-export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, judgeId, callerUid, isAdmin, currentPlayerId }: Props) => {
+export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, tournamentStatus, allMatches = [], judgeId, callerUid, isAdmin, currentPlayerId }: Props) => {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +33,15 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
 
   const winner = m.isFinished ? (m.winnerId === m.playerA.id ? m.playerA : m.playerB) : null;
   const canScore = editable && (!judgeId || callerUid === judgeId || isAdmin);
+
+  const PHASE_ORDER = ["GROUP","ROUND_OF_128","ROUND_OF_64","ROUND_OF_32","ROUND_OF_16","QUARTERFINAL","SEMIFINAL","THIRD_PLACE","FINAL"];
+  const currentIdx = PHASE_ORDER.indexOf(m.phase);
+  const hasLaterPhase = allMatches.some((x) => PHASE_ORDER.indexOf(x.phase) > currentIdx);
+
+  const phaseLocked =
+    tournamentStatus === "FINISHED" ||
+    (m.phase === "GROUP" && tournamentStatus !== "GROUP_STAGE") ||
+    hasLaterPhase;
 
   const score = async (playerId: string, ft: FinishType) => {
     if (submitting || m.isFinished || !callerUid) return;
@@ -43,7 +54,11 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
     try {
       await updateMatchScore(tournamentId, m.id, playerId, ft, callerUid, !!isAdmin);
     } catch (e: any) {
-      setError(e.message === "NOT_JUDGE" ? "Solo el juez asignado puede anotar puntos." : "Error al anotar. Intenta de nuevo.");
+      setError(
+        e.message === "NOT_JUDGE" ? "Solo el juez asignado puede anotar puntos."
+        : e.message === "PHASE_LOCKED" ? "Esta fase ya cerró y no se puede modificar."
+        : "Error al anotar. Intenta de nuevo."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -103,16 +118,19 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
         <div className="flex gap-2">
           {editable && (
             <button
-              onClick={() => setOpen(true)}
+              onClick={() => !phaseLocked && setOpen(true)}
+              disabled={phaseLocked}
               className={`flex-1 text-xs font-gaming py-2 rounded-lg transition-all border ${
-                m.isFinished
+                phaseLocked
+                  ? "text-gray-600 border-white/5 bg-white/2 cursor-not-allowed"
+                  : m.isFinished
                   ? "text-gray-400 border-white/10 bg-white/3 hover:bg-white/8"
                   : canScore
                   ? "text-cyan-400 border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20"
                   : "text-gray-500 border-white/10 bg-white/3"
               }`}
             >
-              {m.isFinished ? "✏️ Corregir" : canScore ? "⚔️ Anotar" : "👁 Ver"}
+              {phaseLocked ? "🔒 Cerrado" : m.isFinished ? "✏️ Corregir" : canScore ? "⚔️ Anotar" : "👁 Ver"}
             </button>
           )}
           {onDelete && (
@@ -172,7 +190,7 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
               </div>
             )}
 
-            {canScore && !m.isFinished && (
+            {canScore && !m.isFinished && !phaseLocked && (
               <div className="grid grid-cols-2 gap-4">
                 {([m.playerA, m.playerB] as const).map((player, idx) => (
                   <div key={player.id} className="space-y-2">
@@ -203,7 +221,7 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
               <div className="card overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-white/5 flex items-center justify-between">
                   <p className="section-title mb-0 text-xs">Historial</p>
-                  {editable && (
+                  {editable && !phaseLocked && (
                     <button onClick={undo} disabled={submitting} className="btn-danger text-xs py-1 px-2.5">
                       ↩ Deshacer último
                     </button>

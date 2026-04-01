@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,7 +8,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <header className="sticky top-0 z-50 bg-[#0f766e]/90 backdrop-blur-md border-b border-white/5">
         <nav className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-lg">🌀</span>
+            <Image src="/logo.jpeg" alt="Logo" width={28} height={28} className="rounded-full object-cover" />
             <span className="font-gaming font-bold tracking-widest text-sm text-white">
               BEYBLADE<span className="text-cyan-400">X</span> PAC
             </span>

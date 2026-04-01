@@ -117,7 +117,7 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
               ) : (
                 <div className="grid md:grid-cols-2 gap-4">
                   {groupMatches.map((m) => (
-                    <MatchCard key={m.id} match={m} tournamentId={tournamentId} editable={false} currentPlayerId={myPlayer?.id} />
+                    <MatchCard key={m.id} match={m} tournamentId={tournamentId} tournamentStatus={tournament.status} editable={false} currentPlayerId={myPlayer?.id} />
                   ))}
                 </div>
               )}

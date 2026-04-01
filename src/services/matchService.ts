@@ -96,17 +96,18 @@ export const generateKnockoutBracket = async (
 
 // Mapeo: cantidad de jugadores → fase inicial
 const getPhaseForCount = (n: number): MatchPhase => {
-  if (n >= 64) return "ROUND_OF_64";
-  if (n >= 32) return "ROUND_OF_32";
-  if (n >= 16) return "ROUND_OF_16";
-  if (n >= 8)  return "QUARTERFINAL";
-  if (n >= 4)  return "SEMIFINAL";
+  if (n >= 128) return "ROUND_OF_128";
+  if (n >= 64)  return "ROUND_OF_64";
+  if (n >= 32)  return "ROUND_OF_32";
+  if (n >= 16)  return "ROUND_OF_16";
+  if (n >= 8)   return "QUARTERFINAL";
+  if (n >= 4)   return "SEMIFINAL";
   return "FINAL";
 };
 
 // Orden de fases (sin THIRD_PLACE, se maneja aparte)
 const PHASE_PROGRESSION: MatchPhase[] = [
-  "ROUND_OF_64", "ROUND_OF_32", "ROUND_OF_16", "QUARTERFINAL", "SEMIFINAL", "FINAL",
+  "ROUND_OF_128", "ROUND_OF_64", "ROUND_OF_32", "ROUND_OF_16", "QUARTERFINAL", "SEMIFINAL", "FINAL",
 ];
 
 /**
@@ -195,6 +196,30 @@ export const updateMatchScore = async (
     const data = snap.data() as Omit<Match, "id">;
     if (data.isFinished) return;
 
+    // Verificar que el torneo no haya avanzado de fase
+    const { getDoc: gd, getDocs: gds, collection: col, query: q, where: w } = await import("firebase/firestore");
+    const tournSnap = await gd(doc(db, "tournaments", tournamentId));
+    if (tournSnap.exists()) {
+      const status = tournSnap.data().status;
+      // Torneo finalizado — todo bloqueado
+      if (status === "FINISHED") throw new Error("PHASE_LOCKED");
+      // Match de grupo — bloqueado si el torneo ya no está en GROUP_STAGE
+      if (data.phase === "GROUP" && status !== "GROUP_STAGE") throw new Error("PHASE_LOCKED");
+      // Match de knockout — bloqueado si ya existe una fase posterior con matches
+      if (data.phase !== "GROUP") {
+        const PHASE_ORDER: MatchPhase[] = ["ROUND_OF_128","ROUND_OF_64","ROUND_OF_32","ROUND_OF_16","QUARTERFINAL","SEMIFINAL","THIRD_PLACE","FINAL"];
+        const currentIdx = PHASE_ORDER.indexOf(data.phase as MatchPhase);
+        if (currentIdx !== -1) {
+          const laterPhases = PHASE_ORDER.slice(currentIdx + 1);
+          const matchesCol = col(db, "tournaments", tournamentId, "matches");
+          for (const phase of laterPhases) {
+            const laterSnap = await gds(q(matchesCol, w("phase", "==", phase)));
+            if (!laterSnap.empty) throw new Error("PHASE_LOCKED");
+          }
+        }
+      }
+    }
+
     // Validate judge for group matches
     if (data.phase === "GROUP" && data.groupId) {
       const { getDoc: gd } = await import("firebase/firestore");
@@ -232,6 +257,27 @@ export const undoLastScore = async (tournamentId: string, matchId: string) => {
     if (!snap.exists()) throw new Error("Match not found.");
     const data = snap.data() as Omit<Match, "id">;
     if (!data.history?.length) return;
+
+    // Verificar que el torneo no haya avanzado de fase
+    const { getDoc: gd, getDocs: gds, collection: col, query: q, where: w } = await import("firebase/firestore");
+    const tournSnap = await gd(doc(db, "tournaments", tournamentId));
+    if (tournSnap.exists()) {
+      const status = tournSnap.data().status;
+      if (status === "FINISHED") throw new Error("PHASE_LOCKED");
+      if (data.phase === "GROUP" && status !== "GROUP_STAGE") throw new Error("PHASE_LOCKED");
+      if (data.phase !== "GROUP") {
+        const PHASE_ORDER: MatchPhase[] = ["ROUND_OF_128","ROUND_OF_64","ROUND_OF_32","ROUND_OF_16","QUARTERFINAL","SEMIFINAL","THIRD_PLACE","FINAL"];
+        const currentIdx = PHASE_ORDER.indexOf(data.phase as MatchPhase);
+        if (currentIdx !== -1) {
+          const laterPhases = PHASE_ORDER.slice(currentIdx + 1);
+          const matchesCol = col(db, "tournaments", tournamentId, "matches");
+          for (const phase of laterPhases) {
+            const laterSnap = await gds(q(matchesCol, w("phase", "==", phase)));
+            if (!laterSnap.empty) throw new Error("PHASE_LOCKED");
+          }
+        }
+      }
+    }
 
     const history = [...data.history];
     history.pop(); // quitar el último evento

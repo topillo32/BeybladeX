@@ -78,7 +78,7 @@ export default function TournamentsPage() {
               <div>
                 <label className="section-title block mb-1">{t("maxPlayers")}</label>
                 <input type="number" value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))}
-                  min={4} max={256} className="input-base text-sm" />
+                  min={4} max={200} className="input-base text-sm" />
               </div>
               {/* Event type */}
               <div className="flex gap-2">

@@ -10,6 +10,7 @@ const orbitron = Orbitron({ subsets: ["latin"], variable: "--font-orbitron" });
 export const metadata: Metadata = {
   title: "Beyblade X PAC",
   description: "Gestor de Torneos Beyblade X PAC",
+  icons: { icon: "/icons/logo.ico" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[977],{5977:function(t,c,e){e.d(c,{createComboHistory:function(){return i}});var n=e(9842),o=e(5379);let a=(0,n.collection)(o.db,"comboHistory"),i=async t=>(await (0,n.ET)(a,{...t,changedAt:(0,n.Bt)()})).id}}]);
