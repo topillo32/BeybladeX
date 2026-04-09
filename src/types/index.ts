@@ -8,6 +8,7 @@ export interface AppUser {
   email: string;
   displayName: string;
   role: UserRole;
+  availableAsJudge?: boolean;
   createdAt: Timestamp;
 }
 
@@ -102,6 +103,10 @@ export interface MatchEvent {
   finishType: (typeof FINISH_TYPES)[FinishType]["name"];
   points: number;
   timestamp: number;
+  /** Id único por acción de anotación (idempotencia ante reintentos). */
+  clientEventId?: string;
+  /** Usuario que registró el punto. */
+  recordedByUid?: string;
 }
 
 export interface Match {
@@ -118,6 +123,8 @@ export interface Match {
   isFinished: boolean;
   winnerId: string | null;
   history: MatchEvent[];
+  lockedBy?: string;   // uid del juez que tiene el match abierto
+  lockedAt?: number;   // timestamp para expirar el lock automáticamente
   createdAt: Timestamp;
 }
 

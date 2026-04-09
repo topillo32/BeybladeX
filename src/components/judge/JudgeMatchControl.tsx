@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { db } from "@/services/firebase";
-import { updateMatchScore, undoLastScore } from "@/services/matchService";
+import { updateMatchScore, undoLastScore, lockMatch, unlockMatch, createScoreEventId } from "@/services/matchService";
+import { useLockHeartbeat } from "@/hooks/useLockHeartbeat";
+import { useAuthContext } from "@/lib/AuthContext";
 import { Match, FINISH_TYPES, Player, FinishType } from "@/types";
 import { ComboVerifier } from "./ComboVerifier";
 
@@ -43,41 +45,91 @@ const ScoreButton = ({ finishType, playerId, onScore, disabled }: {
   const s = FINISH_STYLES[finishType];
   return (
     <button
+      type="button"
       onClick={() => onScore(playerId, finishType)}
       disabled={disabled}
-      className={`w-full border rounded-xl py-4 px-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${s.bg} ${s.border} ${s.text}`}
+      className={`w-full touch-manipulation rounded-lg border px-1 py-2.5 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30 sm:rounded-xl sm:px-2 sm:py-4 ${s.bg} ${s.border} ${s.text}`}
     >
-      <span className="block font-gaming text-xs tracking-widest opacity-75">{name}</span>
-      <span className="block font-gaming text-3xl font-black mt-0.5">+{points}</span>
+      <span className="block font-gaming text-[10px] tracking-wider opacity-75 sm:text-xs sm:tracking-widest">{name}</span>
+      <span className="mt-0.5 block font-gaming text-xl font-black sm:text-3xl">+{points}</span>
     </button>
   );
 };
 
 export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
   const { match, loading, error } = useMatch(tournamentId, matchId);
+  const { user, isAdmin } = useAuthContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
+  const [lockErr, setLockErr] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const router = useRouter();
+  const uid = user?.uid;
 
-  // Mostrar modal cuando el match termina
+  useLockHeartbeat(!!match && !match.isFinished && !lockErr, tournamentId, matchId, uid, !!isAdmin);
+
   useEffect(() => {
     if (match?.isFinished) setShowWinnerModal(true);
   }, [match?.isFinished]);
 
+  useEffect(() => {
+    if (!uid || !match) return;
+    if (match.isFinished) {
+      setLockErr(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        await lockMatch(tournamentId, matchId, uid, !!isAdmin);
+        if (!cancelled) setLockErr(null);
+      } catch (e: any) {
+        if (!cancelled) {
+          setLockErr(
+            e.message === "LOCKED"
+              ? "Otro juez tiene esta partida abierta."
+              : e.message === "NOT_JUDGE"
+                ? "No eres el juez asignado a este grupo."
+                : "No se pudo bloquear la partida."
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      void unlockMatch(tournamentId, matchId, uid);
+    };
+  }, [uid, tournamentId, matchId, match]);
+
   const handleScore = async (playerId: string, finishType: FinishType) => {
-    if (isSubmitting || match?.isFinished) return;
+    if (isSubmitting || match?.isFinished || !uid) return;
     setIsSubmitting(true);
-    try { await updateMatchScore(tournamentId, matchId, playerId, finishType, "", false); }
-    catch (err) { console.error(err); }
-    finally { setIsSubmitting(false); }
+    setActionError(null);
+    try {
+      await updateMatchScore(tournamentId, matchId, playerId, finishType, uid, !!isAdmin, createScoreEventId());
+    } catch (e: any) {
+      setActionError(
+        e.message === "NOT_JUDGE" ? "No eres el juez asignado."
+          : e.message === "PHASE_LOCKED" ? "Esta fase ya no admite cambios."
+          : e.message === "LOCK_EXPIRED" ? "El bloqueo expiró. Recarga la página."
+          : "No se pudo anotar."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleUndo = async () => {
-    if (isSubmitting || !match?.history?.length) return;
+    if (isSubmitting || !match?.history?.length || !uid) return;
     setIsSubmitting(true);
-    try { await undoLastScore(tournamentId, matchId); }
-    catch (err) { console.error(err); }
-    finally { setIsSubmitting(false); }
+    setActionError(null);
+    try {
+      await undoLastScore(tournamentId, matchId, uid, !!isAdmin);
+    } catch {
+      setActionError("No se pudo deshacer.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (loading) return (
@@ -92,6 +144,15 @@ export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
   if (error || !match) return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center text-red-400 font-gaming text-sm">
       {error?.message ?? "No match data."}
+    </div>
+  );
+
+  if (lockErr) return (
+    <div className="min-h-[calc(100vh-64px)] flex flex-col items-center justify-center gap-4 text-amber-400 font-gaming text-sm text-center px-6">
+      <p>{lockErr}</p>
+      <button type="button" onClick={() => router.back()} className="btn-ghost text-xs py-2 px-4">
+        ← Volver
+      </button>
     </div>
   );
 
@@ -142,6 +203,12 @@ export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
           </div>
         )}
 
+        {actionError && (
+          <div className="text-red-400 text-xs text-center font-gaming bg-red-500/10 border border-red-500/30 rounded-lg py-2 px-3">
+            ⚠ {actionError}
+          </div>
+        )}
+
         {/* Verificación de combos */}
         <ComboVerifier
           tournamentId={tournamentId}
@@ -149,21 +216,34 @@ export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
           playerAName={match.playerA.name}
           playerBId={match.playerB.id}
           playerBName={match.playerB.name}
+          defaultExpanded
+          compact
         />
 
         {/* Scoreboard */}
-        <div className="card card-cyan p-6">
-          <p className="section-title text-center mb-4">Scoreboard</p>
+        <div className="card card-cyan p-4 sm:p-6">
+          <p className="section-title mb-3 text-center sm:mb-4">Scoreboard</p>
 
-          {/* Names + score */}
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-cyan-300 font-semibold text-lg flex-1 text-center truncate">{match.playerA.name}</p>
-            <div className="font-gaming text-5xl font-black flex items-center gap-3 shrink-0">
-              <span className="text-cyan-400">{match.playerAScore}</span>
-              <span className="text-gray-400 text-2xl">—</span>
-              <span className="text-amber-400">{match.playerBScore}</span>
+          <div className="sm:hidden space-y-2">
+            <div className="flex items-baseline justify-center gap-3 font-gaming font-black">
+              <span className="text-4xl tabular-nums text-cyan-400">{match.playerAScore}</span>
+              <span className="text-xl text-gray-400">—</span>
+              <span className="text-4xl tabular-nums text-amber-400">{match.playerBScore}</span>
             </div>
-            <p className="text-amber-300 font-semibold text-lg flex-1 text-center truncate">{match.playerB.name}</p>
+            <div className="grid grid-cols-2 gap-2 text-center text-xs font-semibold leading-tight">
+              <p className="break-words text-cyan-300">{match.playerA.name}</p>
+              <p className="break-words text-amber-300">{match.playerB.name}</p>
+            </div>
+          </div>
+
+          <div className="hidden items-center justify-between gap-4 sm:flex">
+            <p className="flex-1 text-center text-lg font-semibold text-cyan-300 truncate">{match.playerA.name}</p>
+            <div className="flex shrink-0 items-center gap-3 font-gaming text-5xl font-black">
+              <span className="tabular-nums text-cyan-400">{match.playerAScore}</span>
+              <span className="text-2xl text-gray-400">—</span>
+              <span className="tabular-nums text-amber-400">{match.playerBScore}</span>
+            </div>
+            <p className="flex-1 text-center text-lg font-semibold text-amber-300 truncate">{match.playerB.name}</p>
           </div>
 
           {/* Progress bars */}
@@ -193,10 +273,10 @@ export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
 
         {/* Controls */}
         {!match.isFinished && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4">
             {([match.playerA, match.playerB] as Player[]).map((player, idx) => (
-              <div key={player.id} className="space-y-2">
-                <div className={`text-center py-2 rounded-xl font-gaming text-xs tracking-widest font-bold ${idx === 0 ? "text-cyan-400 bg-cyan-500/8" : "text-amber-400 bg-amber-500/8"}`}>
+              <div key={player.id} className="min-w-0 space-y-1.5 sm:space-y-2">
+                <div className={`line-clamp-2 rounded-lg py-1.5 text-center font-gaming text-[10px] font-bold tracking-widest sm:rounded-xl sm:py-2 sm:text-xs ${idx === 0 ? "text-cyan-400 bg-cyan-500/8" : "text-amber-400 bg-amber-500/8"}`}>
                   {player.name}
                 </div>
                 {(Object.keys(FINISH_TYPES) as FinishType[]).map((key) => (

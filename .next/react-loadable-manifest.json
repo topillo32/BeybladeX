@@ -1,32 +1,36 @@
 {
   "hooks\\useAuth.ts -> @/services/playerService": {
-    "id": 9086,
+    "id": "hooks\\useAuth.ts -> @/services/playerService",
     "files": [
-      "static/chunks/86.519d262edd1463a2.js"
+      "static/chunks/_app-pages-browser_src_services_playerService_ts.js"
     ]
   },
   "lib\\repositories\\combosRepository.ts -> @/lib/repositories/comboHistoryRepository": {
-    "id": 5977,
+    "id": "lib\\repositories\\combosRepository.ts -> @/lib/repositories/comboHistoryRepository",
     "files": [
-      "static/chunks/977.f069e3e01ca2b553.js"
+      "static/chunks/_app-pages-browser_src_lib_repositories_comboHistoryRepository_ts.js"
     ]
   },
   "services\\groupService.ts -> @/services/playerService": {
-    "id": 9086,
+    "id": "services\\groupService.ts -> @/services/playerService",
     "files": []
   },
   "services\\groupService.ts -> firebase/firestore": {
-    "id": 9842,
+    "id": "services\\groupService.ts -> firebase/firestore",
+    "files": []
+  },
+  "services\\matchService.ts -> ./judgeService": {
+    "id": "services\\matchService.ts -> ./judgeService",
     "files": []
   },
   "services\\matchService.ts -> firebase/firestore": {
-    "id": 9842,
+    "id": "services\\matchService.ts -> firebase/firestore",
     "files": []
   },
   "services\\playerService.ts -> @/services/groupService": {
-    "id": 78,
+    "id": "services\\playerService.ts -> @/services/groupService",
     "files": [
-      "static/chunks/78.878c944882bb8705.js"
+      "static/chunks/_app-pages-browser_src_services_groupService_ts.js"
     ]
   }
 }

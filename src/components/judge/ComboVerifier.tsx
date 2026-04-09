@@ -17,6 +17,10 @@ interface Props {
   playerAName: string;
   playerBId: string;
   playerBName: string;
+  /** Abre el acordeón al montar (útil en modal móvil). */
+  defaultExpanded?: boolean;
+  /** Menos padding y tipografía más compacta. */
+  compact?: boolean;
   onValidationChange?: (allValid: boolean, hasInvalid: boolean) => void;
 }
 
@@ -39,13 +43,14 @@ async function resolveCombo(combo: Combo): Promise<ResolvedCombo> {
 }
 
 const SlotVerifier = ({
-  combo, state, onChange,
+  combo, state, onChange, compact,
 }: {
   combo: ResolvedCombo;
   state: VerifyState;
   onChange: (s: VerifyState) => void;
+  compact?: boolean;
 }) => (
-  <div className={`card p-3 space-y-2 border transition-colors ${
+  <div className={`card space-y-2 border transition-colors ${compact ? "p-2.5 sm:p-3" : "p-3"} ${
     state === "valid" ? "border-green-500/40 bg-green-500/5" :
     state === "invalid" ? "border-red-500/40 bg-red-500/5" :
     "border-white/10"
@@ -58,25 +63,31 @@ const SlotVerifier = ({
         </span>
       )}
     </div>
-    <div className="text-sm space-y-0.5">
-      <p className="text-white font-semibold">
+    <div className={`space-y-0.5 ${compact ? "text-xs sm:text-sm" : "text-sm"}`}>
+      <p className="break-words font-semibold text-white leading-snug">
         {combo.bladeName}
         {combo.assistBladeName && <span className="text-gray-400"> + {combo.assistBladeName}</span>}
       </p>
-      <p className="text-gray-400 text-xs">{combo.ratchetName} · {combo.bitName}</p>
+      <p className="break-words text-gray-400 text-[11px] sm:text-xs leading-snug">{combo.ratchetName} · {combo.bitName}</p>
     </div>
-    <div className="flex gap-2 pt-1">
+    <div className={`flex gap-2 pt-1 ${compact ? "gap-1.5" : ""}`}>
       <button
+        type="button"
         onClick={() => onChange("valid")}
-        className={`flex-1 py-1.5 rounded-lg text-xs font-gaming tracking-wider border transition-all ${
+        className={`flex-1 touch-manipulation rounded-lg font-gaming tracking-wider border transition-all ${
+          compact ? "min-h-[44px] py-2 text-[11px] sm:text-xs" : "py-1.5 text-xs"
+        } ${
           state === "valid"
             ? "bg-green-500/20 border-green-500/50 text-green-300"
             : "bg-white/5 border-white/10 text-gray-400 hover:border-green-500/30 hover:text-green-400"
         }`}
       >✓ Válido</button>
       <button
+        type="button"
         onClick={() => onChange("invalid")}
-        className={`flex-1 py-1.5 rounded-lg text-xs font-gaming tracking-wider border transition-all ${
+        className={`flex-1 touch-manipulation rounded-lg font-gaming tracking-wider border transition-all ${
+          compact ? "min-h-[44px] py-2 text-[11px] sm:text-xs" : "py-1.5 text-xs"
+        } ${
           state === "invalid"
             ? "bg-red-500/20 border-red-500/50 text-red-300"
             : "bg-white/5 border-white/10 text-gray-400 hover:border-red-500/30 hover:text-red-400"
@@ -87,11 +98,12 @@ const SlotVerifier = ({
 );
 
 const PlayerCombos = ({
-  playerId, tournamentId, playerName, onValidationChange,
+  playerId, tournamentId, playerName, onValidationChange, compact,
 }: {
   playerId: string;
   tournamentId: string;
   playerName: string;
+  compact?: boolean;
   onValidationChange?: (allValid: boolean, hasInvalid: boolean) => void;
 }) => {
   const [combos, setCombos] = useState<ResolvedCombo[]>([]);
@@ -119,8 +131,8 @@ const PlayerCombos = ({
     setStates((prev) => ({ ...prev, [slot]: s }));
 
   return (
-    <div className="space-y-3">
-      <p className="section-title">{playerName}</p>
+    <div className={compact ? "space-y-2" : "space-y-3"}>
+      <p className={`font-gaming tracking-wider text-gray-400 ${compact ? "text-[10px] sm:text-xs" : "section-title"}`}>{playerName}</p>
       {loading ? (
         <p className="text-gray-500 text-xs text-center py-4">Cargando combos...</p>
       ) : missingSlots.length > 0 ? (
@@ -130,7 +142,7 @@ const PlayerCombos = ({
       ) : (
         <>
           {combos.sort((a, b) => a.slot - b.slot).map((c) => (
-            <SlotVerifier key={c.slot} combo={c} state={states[c.slot]} onChange={(s) => updateState(c.slot, s)} />
+            <SlotVerifier key={c.slot} combo={c} state={states[c.slot]} compact={compact} onChange={(s) => updateState(c.slot, s)} />
           ))}
           {allChecked && (
             <div className={`text-center py-2 rounded-lg font-gaming text-xs font-bold border ${
@@ -147,8 +159,17 @@ const PlayerCombos = ({
   );
 };
 
-export const ComboVerifier = ({ tournamentId, playerAId, playerAName, playerBId, playerBName, onValidationChange }: Props) => {
-  const [open, setOpen] = useState(false);
+export const ComboVerifier = ({
+  tournamentId,
+  playerAId,
+  playerAName,
+  playerBId,
+  playerBName,
+  defaultExpanded = false,
+  compact = false,
+  onValidationChange,
+}: Props) => {
+  const [open, setOpen] = useState(defaultExpanded);
   const [activePlayer, setActivePlayer] = useState<"A" | "B">("A");
   const [stateA, setStateA] = useState<{ allValid: boolean; hasInvalid: boolean }>({ allValid: false, hasInvalid: false });
   const [stateB, setStateB] = useState<{ allValid: boolean; hasInvalid: boolean }>({ allValid: false, hasInvalid: false });
@@ -158,23 +179,32 @@ export const ComboVerifier = ({ tournamentId, playerAId, playerAName, playerBId,
   }, [stateA, stateB]);
 
   return (
-    <div className="card overflow-hidden">
+    <div className={`card overflow-hidden ${compact ? "rounded-xl" : ""}`}>
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/5 transition-colors"
+        className={`flex w-full items-center justify-between text-left transition-colors hover:bg-white/5 ${
+          compact ? "min-h-[48px] px-3 py-2.5 sm:px-5 sm:py-3 touch-manipulation" : "px-5 py-3"
+        }`}
       >
-        <span className="section-title mb-0">🔍 Verificar Combos</span>
-        <span className="text-gray-500 text-xs font-gaming">{open ? "▲" : "▼"}</span>
+        <span className={`mb-0 font-gaming ${compact ? "text-[11px] tracking-wide sm:text-xs sm:tracking-widest" : "section-title"}`}>
+          🔍 Verificar combos
+        </span>
+        <span className="shrink-0 text-gray-500 font-gaming text-xs">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
-        <div className="px-5 pb-5 space-y-4 border-t border-white/5 pt-4">
-          <div className="flex gap-2">
+        <div className={`space-y-3 border-t border-white/5 pt-3 sm:space-y-4 sm:pt-4 ${compact ? "px-3 pb-4 sm:px-5 sm:pb-5" : "px-5 pb-5"}`}>
+          <div className="flex gap-1.5 sm:gap-2">
             {(["A", "B"] as const).map((p) => (
               <button
                 key={p}
+                type="button"
+                title={p === "A" ? playerAName : playerBName}
                 onClick={() => setActivePlayer(p)}
-                className={`flex-1 py-2 rounded-lg font-gaming text-xs tracking-wider border transition-all ${
+                className={`min-h-[44px] min-w-0 flex-1 touch-manipulation rounded-lg font-gaming tracking-wider border px-1 transition-all sm:py-2 ${
+                  compact ? "py-2 text-[10px] leading-tight sm:text-xs" : "py-2 text-xs"
+                } ${
                   activePlayer === p
                     ? p === "A"
                       ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300"
@@ -182,19 +212,19 @@ export const ComboVerifier = ({ tournamentId, playerAId, playerAName, playerBId,
                     : "bg-white/5 border-white/10 text-gray-400"
                 }`}
               >
-                {p === "A" ? playerAName : playerBName}
+                <span className="line-clamp-2 break-words">{p === "A" ? playerAName : playerBName}</span>
               </button>
             ))}
           </div>
 
           {activePlayer === "A" ? (
             <PlayerCombos
-              playerId={playerAId} tournamentId={tournamentId} playerName={playerAName}
+              playerId={playerAId} tournamentId={tournamentId} playerName={playerAName} compact={compact}
               onValidationChange={(allValid, hasInvalid) => setStateA({ allValid, hasInvalid })}
             />
           ) : (
             <PlayerCombos
-              playerId={playerBId} tournamentId={tournamentId} playerName={playerBName}
+              playerId={playerBId} tournamentId={tournamentId} playerName={playerBName} compact={compact}
               onValidationChange={(allValid, hasInvalid) => setStateB({ allValid, hasInvalid })}
             />
           )}

@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { getAllUsers, updateUserRole } from "@/services/authService";
+import { setJudgeAvailability } from "@/services/judgeService";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { RoleBadge } from "@/components/ui/Badges";
@@ -31,6 +32,13 @@ export default function UsersPage() {
     setUpdating(null);
   };
 
+  const handleJudgeAvailability = async (uid: string, available: boolean) => {
+    setUpdating(uid);
+    await setJudgeAvailability(uid, available);
+    setUsers((prev) => prev.map((u) => u.uid === uid ? { ...u, availableAsJudge: available } : u));
+    setUpdating(null);
+  };
+
   if (loading) return <Spinner size={12} />;
 
   return (
@@ -50,6 +58,20 @@ export default function UsersPage() {
                   <p className="text-white/50 text-xs truncate hidden sm:block">{u.email}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {/* Disponibilidad como juez — solo staff/admin */}
+                  {(u.role === "staff" || u.role === "admin") && (
+                    <button
+                      onClick={() => handleJudgeAvailability(u.uid, !u.availableAsJudge)}
+                      disabled={updating === u.uid}
+                      title={u.availableAsJudge ? "Disponible como juez" : "No disponible como juez"}
+                      className={`text-xs font-gaming px-2 py-1 rounded-lg border transition-all ${
+                        u.availableAsJudge
+                          ? "text-green-400 border-green-500/30 bg-green-500/10 hover:bg-green-500/20"
+                          : "text-white/30 border-white/10 bg-white/5 hover:bg-white/10"
+                      }`}>
+                      ⚖️
+                    </button>
+                  )}
                   <RoleBadge role={u.role} />
                   <select
                     value={u.role}

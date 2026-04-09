@@ -2,7 +2,8 @@
 import { useState } from "react";
 import type { Match, FinishType } from "@/types";
 import { FINISH_TYPES } from "@/types";
-import { updateMatchScore, undoLastScore, advanceKnockoutRound } from "@/services/matchService";
+import { updateMatchScore, undoLastScore, advanceKnockoutRound, lockMatch, unlockMatch, createScoreEventId } from "@/services/matchService";
+import { useLockHeartbeat } from "@/hooks/useLockHeartbeat";
 
 interface Props {
   matches: Match[];
@@ -33,10 +34,12 @@ const FINISH_STYLES: Record<FinishType, string> = {
   XTREME: "border-red-500/30 text-red-300 bg-red-500/10 hover:bg-red-500/20",
 };
 
-export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmin }: Props) => {
+export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmin = false }: Props) => {
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [advancing, setAdvancing] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
 
   const handleAdvanceRound = async (phaseMatches: Match[]) => {
     setAdvancing(true);
@@ -47,18 +50,63 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
   // Sync activeMatch with live data from matches prop
   const liveMatch = activeMatch ? (matches.find((m) => m.id === activeMatch.id) ?? activeMatch) : null;
 
+  useLockHeartbeat(!!liveMatch && !!tournamentId, tournamentId, liveMatch?.id, callerUid, !!isAdmin);
+
   const handleScore = async (playerId: string, ft: FinishType) => {
-    if (!liveMatch || submitting) return;
+    if (!liveMatch || submitting || !callerUid) return;
     setSubmitting(true);
-    try { await updateMatchScore(tournamentId!, liveMatch.id, playerId, ft, callerUid!, !!isAdmin); }
-    finally { setSubmitting(false); }
+    setModalError(null);
+    try {
+      await updateMatchScore(tournamentId!, liveMatch.id, playerId, ft, callerUid, !!isAdmin, createScoreEventId());
+    } catch (e: any) {
+      setModalError(
+        e.message === "LOCK_REQUIRED" ? "Cierra y vuelve a abrir la partida."
+          : e.message === "LOCK_EXPIRED" ? "El bloqueo expiró. Cierra y abre de nuevo."
+          : e.message === "PHASE_LOCKED" ? "Esta fase ya no admite cambios."
+          : "Error al anotar."
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleUndo = async () => {
-    if (!liveMatch || submitting || !liveMatch.history?.length) return;
+    if (!liveMatch || submitting || !liveMatch.history?.length || !callerUid) return;
     setSubmitting(true);
-    try { await undoLastScore(tournamentId!, liveMatch.id); }
-    finally { setSubmitting(false); }
+    setModalError(null);
+    try {
+      await undoLastScore(tournamentId!, liveMatch.id, callerUid, !!isAdmin);
+    } catch (e: any) {
+      setModalError(
+        e.message === "LOCK_REQUIRED" ? "Vuelve a abrir la partida para tomar el bloqueo."
+          : e.message === "LOCK_EXPIRED" ? "El bloqueo expiró. Cierra y abre de nuevo."
+          : "Error al deshacer."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openBracketModal = async (m: Match) => {
+    if (!editable || !tournamentId || !callerUid) return;
+    setModalError(null);
+    setListError(null);
+    try {
+      await lockMatch(tournamentId, m.id, callerUid, !!isAdmin);
+      setActiveMatch(m);
+    } catch (e: any) {
+      const msg =
+        e.message === "LOCKED" ? "Otro juez ya tiene esta partida abierta."
+        : e.message === "NOT_JUDGE" ? "No eres el juez asignado (en grupos solo puede anotar el juez del grupo)."
+        : "No se pudo abrir la partida.";
+      setListError(msg);
+    }
+  };
+
+  const closeBracketModal = () => {
+    if (tournamentId && activeMatch && callerUid) void unlockMatch(tournamentId, activeMatch.id, callerUid);
+    setActiveMatch(null);
+    setModalError(null);
   };
 
   const phases = PHASE_ORDER.filter((p) => matches.some((m) => m.phase === p));
@@ -76,6 +124,12 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
 
   return (
     <>
+      {listError && (
+        <div className="mb-3 text-red-400 text-xs text-center font-gaming bg-red-500/10 border border-red-500/30 rounded-lg py-2 px-3">
+          ⚠ {listError}
+          <button type="button" onClick={() => setListError(null)} className="ml-2 text-red-300 hover:text-white">✕</button>
+        </div>
+      )}
       {/* Bracket */}
       <div className="overflow-x-auto pb-4">
         <div className="flex gap-6 min-w-max">
@@ -119,7 +173,7 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
                         })}
                         {editable && tournamentId ? (
                           <button
-                            onClick={() => setActiveMatch(m)}
+                            onClick={() => void openBracketModal(m)}
                             className={`w-full text-sm font-gaming py-2 rounded-lg transition-all border ${
                               m.isFinished
                                 ? "text-gray-400 border-white/10 bg-white/3 hover:bg-white/8"
@@ -143,26 +197,56 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal — mismo patrón que MatchCard para móvil */}
       {liveMatch && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4 py-6">
-          <div className="card card-cyan w-full max-w-2xl flex flex-col gap-5 p-6" style={{maxHeight: "90vh", overflowY: "auto"}}>
-
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <p className="font-gaming text-sm tracking-widest text-gray-300">{PHASE_LABELS[liveMatch.phase] ?? liveMatch.phase.replace(/_/g, " ")}</p>
-              <button onClick={() => setActiveMatch(null)} className="text-gray-500 hover:text-white text-xl leading-none">✕</button>
-            </div>
-
-            {/* Scoreboard */}
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-cyan-300 font-semibold text-lg flex-1 text-center truncate">{liveMatch.playerA.name}</p>
-              <div className="font-gaming text-5xl font-black flex items-center gap-3 shrink-0">
-                <span className="text-cyan-400">{liveMatch.playerAScore}</span>
-                <span className="text-gray-500 text-2xl">—</span>
-                <span className="text-amber-400">{liveMatch.playerBScore}</span>
+        <div
+          className="fixed inset-0 z-[60] flex items-start justify-center bg-black/85 sm:items-center sm:justify-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="card card-cyan mt-[env(safe-area-inset-top)] mb-[env(safe-area-inset-bottom)] flex h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-0 w-full max-w-2xl flex-col overflow-hidden rounded-none rounded-b-2xl shadow-2xl sm:mt-0 sm:mb-0 sm:h-auto sm:max-h-[min(90vh,56rem)] sm:rounded-2xl">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:pt-6">
+                <p className="font-gaming text-xs tracking-widest text-gray-300 sm:text-sm">
+                  {PHASE_LABELS[liveMatch.phase] ?? liveMatch.phase.replace(/_/g, " ")}
+                </p>
+                <button
+                  type="button"
+                  onClick={closeBracketModal}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-white/10 hover:text-white touch-manipulation"
+                  aria-label="Cerrar"
+                >
+                  ✕
+                </button>
               </div>
-              <p className="text-amber-300 font-semibold text-lg flex-1 text-center truncate">{liveMatch.playerB.name}</p>
+
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain touch-pan-y px-4 pb-6 sm:px-6 sm:pb-6 [scrollbar-gutter:stable]">
+
+            {modalError && (
+              <div className="text-red-400 text-xs text-center font-gaming bg-red-500/10 border border-red-500/30 rounded-lg py-2 px-3">
+                ⚠ {modalError}
+              </div>
+            )}
+
+            <div className="sm:hidden space-y-2">
+              <div className="flex items-baseline justify-center gap-3 font-gaming font-black">
+                <span className="text-4xl tabular-nums text-cyan-400">{liveMatch.playerAScore}</span>
+                <span className="text-xl text-gray-500">—</span>
+                <span className="text-4xl tabular-nums text-amber-400">{liveMatch.playerBScore}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center text-xs font-semibold leading-tight">
+                <p className="break-words text-cyan-300">{liveMatch.playerA.name}</p>
+                <p className="break-words text-amber-300">{liveMatch.playerB.name}</p>
+              </div>
+            </div>
+            <div className="hidden items-center justify-between gap-3 sm:flex">
+              <p className="flex-1 text-center text-lg font-semibold text-cyan-300 truncate">{liveMatch.playerA.name}</p>
+              <div className="flex shrink-0 items-center gap-3 font-gaming text-5xl font-black">
+                <span className="tabular-nums text-cyan-400">{liveMatch.playerAScore}</span>
+                <span className="text-2xl text-gray-500">—</span>
+                <span className="tabular-nums text-amber-400">{liveMatch.playerBScore}</span>
+              </div>
+              <p className="flex-1 text-center text-lg font-semibold text-amber-300 truncate">{liveMatch.playerB.name}</p>
             </div>
 
             {/* Winner banner */}
@@ -175,21 +259,22 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
 
             {/* Score buttons — siempre visibles si editable (para corregir) */}
             {!liveMatch.isFinished && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 {[liveMatch.playerA, liveMatch.playerB].map((player, idx) => (
-                  <div key={player.id} className="space-y-2">
-                    <p className={`text-xs font-gaming tracking-widest text-center ${idx === 0 ? "text-cyan-400" : "text-amber-400"}`}>
+                  <div key={player.id} className="min-w-0 space-y-1.5 sm:space-y-2">
+                    <p className={`line-clamp-2 text-center font-gaming text-[10px] tracking-widest sm:text-xs ${idx === 0 ? "text-cyan-400" : "text-amber-400"}`}>
                       {player.name}
                     </p>
                     {(Object.keys(FINISH_TYPES) as FinishType[]).map((ft) => (
                       <button
                         key={ft}
+                        type="button"
                         onClick={() => handleScore(player.id, ft)}
                         disabled={submitting}
-                        className={`w-full border rounded-xl py-3 text-center transition-all active:scale-95 disabled:opacity-40 ${FINISH_STYLES[ft]}`}
+                        className={`w-full touch-manipulation rounded-lg border py-2 text-center transition-all active:scale-[0.98] disabled:opacity-40 sm:rounded-xl sm:py-3 ${FINISH_STYLES[ft]}`}
                       >
-                        <span className="block font-gaming text-xs tracking-widest opacity-75">{FINISH_TYPES[ft].name}</span>
-                        <span className="block font-gaming text-2xl font-black">+{FINISH_TYPES[ft].points}</span>
+                        <span className="block font-gaming text-[10px] tracking-wider opacity-75 sm:text-xs sm:tracking-widest leading-tight">{FINISH_TYPES[ft].name}</span>
+                        <span className="block font-gaming text-lg font-black sm:text-2xl">+{FINISH_TYPES[ft].points}</span>
                       </button>
                     ))}
                   </div>
@@ -223,9 +308,11 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
               </div>
             )}
 
-            <button onClick={() => setActiveMatch(null)} className="btn-ghost w-full text-xs py-2">
+            <button type="button" onClick={closeBracketModal} className="btn-ghost w-full touch-manipulation py-3 text-xs sm:py-2">
               Cerrar
             </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

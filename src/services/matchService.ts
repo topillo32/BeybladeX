@@ -2,6 +2,7 @@ import {
   collection, addDoc, deleteDoc, doc, runTransaction,
   arrayUnion, serverTimestamp, writeBatch, getDocs, query, where,
 } from "firebase/firestore";
+import type { MatchEvent } from "@/types";
 import { db } from "./firebase";
 import type { Match, MatchPhase, Player, TournamentGroup, FinishType, FINISH_TYPES, StandingEntry } from "@/types";
 import { FINISH_TYPES as FT } from "@/types";
@@ -179,22 +180,96 @@ export const advanceKnockoutRound = async (
 
 const WINNING_SCORE = 4;
 
+/** Tiempo máximo sin renovar el bloqueo antes de que expire (renovar con `renewLock` mientras el modal está abierto). */
+export const LOCK_TTL_MS = 120_000;
+
+/** Intervalo recomendado para llamar a `renewLock` desde la UI (ms). */
+export const LOCK_RENEW_INTERVAL_MS = 20_000;
+
+/** Genera id para `clientEventId` en cada toque de anotación (idempotencia). */
+export function createScoreEventId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+export const lockMatch = async (
+  tournamentId: string,
+  matchId: string,
+  callerUid: string,
+  isAdmin = false
+) => {
+  const matchRef = doc(db, "tournaments", tournamentId, "matches", matchId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(matchRef);
+    if (!snap.exists()) throw new Error("Match not found.");
+    const data = snap.data() as Match;
+    if (data.phase === "GROUP" && data.groupId && !isAdmin) {
+      const groupRef = doc(db, "tournaments", tournamentId, "groups", data.groupId);
+      const gSnap = await tx.get(groupRef);
+      if (gSnap.exists()) {
+        const jid = gSnap.data().judgeId as string | undefined;
+        if (jid && jid !== callerUid) throw new Error("NOT_JUDGE");
+      }
+    }
+    const now = Date.now();
+    // Si hay un lock activo de otro usuario y no ha expirado
+    if (data.lockedBy && data.lockedBy !== callerUid && data.lockedAt && (now - data.lockedAt) < LOCK_TTL_MS)
+      throw new Error("LOCKED");
+    tx.update(matchRef, { lockedBy: callerUid, lockedAt: now });
+  });
+};
+
+export const unlockMatch = async (tournamentId: string, matchId: string, callerUid: string) => {
+  const matchRef = doc(db, "tournaments", tournamentId, "matches", matchId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(matchRef);
+    if (!snap.exists()) return;
+    const data = snap.data() as Match;
+    if (data.lockedBy === callerUid) tx.update(matchRef, { lockedBy: null, lockedAt: null });
+  });
+};
+
+/** Renueva `lockedAt` si quien llama sigue siendo el titular (para no expirar durante anotación larga). */
+export const renewLock = async (tournamentId: string, matchId: string, callerUid: string) => {
+  const matchRef = doc(db, "tournaments", tournamentId, "matches", matchId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(matchRef);
+    if (!snap.exists()) return;
+    const data = snap.data() as Match;
+    if (data.isFinished) return;
+    if (data.lockedBy !== callerUid) return;
+    tx.update(matchRef, { lockedAt: Date.now() });
+  });
+};
+
 export const updateMatchScore = async (
   tournamentId: string,
   matchId: string,
   playerId: string,
   finishType: FinishType,
   callerUid: string,
-  isAdmin: boolean
+  isAdmin: boolean,
+  clientEventId?: string
 ) => {
   const matchRef = doc(db, "tournaments", tournamentId, "matches", matchId);
   const { points, name } = FT[finishType];
+  const eventId = clientEventId ?? createScoreEventId();
 
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(matchRef);
     if (!snap.exists()) throw new Error("Match not found.");
     const data = snap.data() as Omit<Match, "id">;
     if (data.isFinished) return;
+
+    const priorHistory = (data.history ?? []) as MatchEvent[];
+    if (priorHistory.some((e) => e.clientEventId && e.clientEventId === eventId)) return;
+
+    if (!isAdmin) {
+      if (!callerUid) throw new Error("AUTH_REQUIRED");
+      const nowCheck = Date.now();
+      if (!data.lockedBy || data.lockedBy !== callerUid) throw new Error("LOCK_REQUIRED");
+      if (data.lockedAt && nowCheck - data.lockedAt >= LOCK_TTL_MS) throw new Error("LOCK_EXPIRED");
+    }
 
     // Verificar que el torneo no haya avanzado de fase
     const { getDoc: gd, getDocs: gds, collection: col, query: q, where: w } = await import("firebase/firestore");
@@ -237,19 +312,64 @@ export const updateMatchScore = async (
     const field = isA ? "playerAScore" : "playerBScore";
     const newScore = (data[field] || 0) + points;
 
+    const eventPayload: MatchEvent = {
+      playerId,
+      finishType: name,
+      points,
+      timestamp: Date.now(),
+      clientEventId: eventId,
+      recordedByUid: callerUid,
+    };
+
     const update: Record<string, unknown> = {
       [field]: newScore,
-      history: arrayUnion({ playerId, finishType: name, points, timestamp: Date.now() }),
+      history: arrayUnion(eventPayload),
     };
     if (newScore >= WINNING_SCORE) {
       update.isFinished = true;
       update.winnerId = playerId;
+      update.lockedBy = null;
+      update.lockedAt = null;
     }
     tx.update(matchRef, update);
+
+    const auditRef = doc(collection(db, "tournaments", tournamentId, "matches", matchId, "scoreAudit"));
+    tx.set(auditRef, {
+      action: "score",
+      playerId,
+      finishType: name,
+      points,
+      recordedByUid: callerUid,
+      clientEventId: eventId,
+      createdAt: serverTimestamp(),
+    });
   });
+
+  // Si el match era de grupo, verificar si el grupo terminó para reasignar juez
+  const updatedSnap = await import("firebase/firestore").then(({ getDoc }) =>
+    getDoc(doc(db, "tournaments", tournamentId, "matches", matchId))
+  );
+  if (updatedSnap.exists() && updatedSnap.data().isFinished && updatedSnap.data().groupId) {
+    const groupId = updatedSnap.data().groupId;
+    const groupMatchesSnap = await getDocs(
+      query(matchesCol(tournamentId), where("groupId", "==", groupId))
+    );
+    const allFinished = groupMatchesSnap.docs.every((d) => d.data().isFinished);
+    if (allFinished) {
+      const { reassignJudgeOnGroupComplete } = await import("./judgeService");
+      const playersSnap = await getDocs(collection(db, "players"));
+      const players = playersSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
+      await reassignJudgeOnGroupComplete(tournamentId, groupId, players);
+    }
+  }
 };
 
-export const undoLastScore = async (tournamentId: string, matchId: string) => {
+export const undoLastScore = async (
+  tournamentId: string,
+  matchId: string,
+  callerUid: string,
+  isAdmin: boolean
+) => {
   const matchRef = doc(db, "tournaments", tournamentId, "matches", matchId);
 
   await runTransaction(db, async (tx) => {
@@ -257,6 +377,13 @@ export const undoLastScore = async (tournamentId: string, matchId: string) => {
     if (!snap.exists()) throw new Error("Match not found.");
     const data = snap.data() as Omit<Match, "id">;
     if (!data.history?.length) return;
+
+    if (!isAdmin) {
+      if (!callerUid) throw new Error("AUTH_REQUIRED");
+      const nowU = Date.now();
+      if (!data.lockedBy || data.lockedBy !== callerUid) throw new Error("LOCK_REQUIRED");
+      if (data.lockedAt && nowU - data.lockedAt >= LOCK_TTL_MS) throw new Error("LOCK_EXPIRED");
+    }
 
     // Verificar que el torneo no haya avanzado de fase
     const { getDoc: gd, getDocs: gds, collection: col, query: q, where: w } = await import("firebase/firestore");
@@ -296,6 +423,13 @@ export const undoLastScore = async (tournamentId: string, matchId: string) => {
       playerBScore,
       isFinished: false,
       winnerId: null,
+    });
+
+    const undoAuditRef = doc(collection(db, "tournaments", tournamentId, "matches", matchId, "scoreAudit"));
+    tx.set(undoAuditRef, {
+      action: "undo",
+      recordedByUid: callerUid,
+      createdAt: serverTimestamp(),
     });
   });
 };

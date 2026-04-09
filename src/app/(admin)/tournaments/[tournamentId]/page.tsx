@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useTournament, useGroups, useMatches, usePlayers, usePendingPlayers, useUnenrolledPlayers } from "@/hooks/useTournament";
 import { useAuthContext } from "@/lib/AuthContext";
 import { updateTournament, advanceTournamentStatus } from "@/services/tournamentService";
-import { generateGroups, addPlayerToGroupLiveWithPlayers, fillGroupWithByes, removePlayerFromGroupWithMatches, withdrawPlayerFromGroup, deleteGroup, assignJudge, removeJudge } from "@/services/groupService";
+import { generateGroups, addPlayerToGroupLiveWithPlayers, fillGroupWithByes, removePlayerFromGroupWithMatches, withdrawPlayerFromGroup, deleteGroup, assignJudge, removeJudge, getGroups } from "@/services/groupService";
+import { buildTournamentExportSnapshot, downloadTournamentJson } from "@/services/tournamentExportService";
 import { generateGroupMatches, generateKnockoutBracket } from "@/services/matchService";
 import { computeGlobalStandings, getQualifiers, computeGroupStandings, autoQualifiersCount } from "@/services/standingsService";
 import { getAllUsers } from "@/services/authService";
@@ -20,6 +21,7 @@ import type { TournamentStatus, AppUser } from "@/types";
 import { useLang } from "@/lib/LangContext";
 import { OPEN_REGISTRATION_STATUSES as OPEN_REG } from "@/types";
 import { markCheckIn, removeCheckIn, subscribeCheckIns } from "@/services/checkInService";
+import { autoAssignJudges } from "@/services/judgeService";
 import type { CheckIn } from "@/services/checkInService";
 
 import { useEffect } from "react";
@@ -44,11 +46,13 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const [tab, setTab] = useState<Tab>("overview");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [enrollSearch, setEnrollSearch] = useState("");
   const [staffUsers, setStaffUsers] = useState<AppUser[]>([]);
   const [showStepper, setShowStepper] = useState(false);
   const [showAddPlayers, setShowAddPlayers] = useState(false);
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn>>({});
+  const [selectedQualifiers, setSelectedQualifiers] = useState<number>(0);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -67,7 +71,6 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const knockoutMatches = matches.filter((m) => m.phase !== "GROUP");
   const globalStandings = computeGlobalStandings(groups, matches, players);
   const autoCount = autoQualifiersCount(globalStandings.length);
-  const [selectedQualifiers, setSelectedQualifiers] = useState<number>(0);
 
   const run = async (fn: () => Promise<void>) => {
     setWorking(true);
@@ -93,6 +96,17 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           const gPlayers = paidPlayers.filter((p) => g.playerIds.includes(p.id));
           await generateGroupMatches(tournamentId, g, gPlayers);
         }
+        // Asignar jueces disponibles automáticamente
+        await autoAssignJudges(tournamentId, freshGroups, paidPlayers);
+        const groupsAfter = await getGroups(tournamentId);
+        const withoutJudge = groupsAfter.filter((g) => !g.judgeId).length;
+        if (withoutJudge > 0) {
+          setNotice(
+            `${withoutJudge} grupo(s) quedaron sin juez. Revisa Usuarios (⚖️ disponible) o asigna manualmente en Grupos.`
+          );
+        } else {
+          setNotice(null);
+        }
       }
       if (next === "KNOCKOUT") {
         const qualifyCount = selectedQualifiers || autoQualifiersCount(globalStandings.length);
@@ -111,6 +125,12 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const handleEnroll = async (playerId: string) => {
     await enrollPlayerInTournament(playerId, tournamentId, tournament.status);
   };
+
+  const handleExportJson = () =>
+    run(async () => {
+      const snap = await buildTournamentExportSnapshot(tournamentId);
+      downloadTournamentJson(snap, tournament.name);
+    });
 
   const handleApprove = (player: import("@/types").Player) =>
     run(async () => {
@@ -162,6 +182,17 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
         </div>
       )}
 
+      {notice && (
+        <div className="fixed top-4 left-1/2 z-50 max-w-md -translate-x-1/2 rounded-xl border border-amber-500/40 bg-amber-950/95 px-5 py-3 font-gaming text-xs text-amber-100 shadow-xl">
+          <div className="flex items-start justify-between gap-3">
+            <span>ℹ️ {notice}</span>
+            <button type="button" onClick={() => setNotice(null)} className="shrink-0 text-amber-300 hover:text-white leading-none">
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {working && (
         <div className="fixed inset-0 bg-black/70 flex flex-col items-center justify-center z-50 gap-4">
           <div className="relative w-14 h-14">
@@ -178,9 +209,28 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
         <aside className="w-full lg:w-72 lg:shrink-0 space-y-4 lg:sticky lg:top-6">
           <div>
             <Link href="/tournaments" className="text-white hover:text-cyan-400 text-sm transition-colors">{t("back")}</Link>
-            <div className="flex items-center gap-2 mt-2">
-              <h1 className="font-gaming text-lg font-black tracking-widest text-white flex-1 leading-tight">{tournament.name}</h1>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <h1 className="font-gaming text-lg font-black tracking-widest text-white flex-1 leading-tight min-w-[8rem]">{tournament.name}</h1>
               <StatusBadge status={tournament.status} />
+              {isStaff && (
+                <Link
+                  href={`/tournaments/${tournamentId}/scoring`}
+                  className="shrink-0 text-xs font-gaming tracking-wider px-3 py-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transition-all"
+                >
+                  ⚔️ Anotación
+                </Link>
+              )}
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={handleExportJson}
+                  disabled={working}
+                  className="shrink-0 text-xs font-gaming tracking-wider px-3 py-1.5 rounded-lg border border-white/15 bg-white/5 text-gray-200 hover:bg-white/10 transition-all disabled:opacity-50"
+                  title="Respaldo JSON del torneo (grupos, partidas, jugadores relacionados)"
+                >
+                  ⬇️ Exportar
+                </button>
+              )}
             </div>
           </div>
 
@@ -321,6 +371,28 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                   ))}
                 </div>
 
+                {tournament.status === "GROUP_STAGE" && groups.length > 0 && (
+                  <div className="card card-cyan p-4 space-y-3">
+                    <p className="section-title mb-0 text-xs">⚖️ Checklist de jueces</p>
+                    <p className="text-gray-500 text-[11px] leading-snug">
+                      Solo quienes tienen ⚖️ activo en Usuarios aparecen para asignación automática. Un juez no puede estar en dos grupos a la vez ni arbitrar un grupo en el que juega.
+                    </p>
+                    <ul className="divide-y divide-white/5">
+                      {groups.map((g) => {
+                        const assigned = !!g.judgeId;
+                        return (
+                          <li key={g.id} className="flex items-center justify-between py-2 gap-2 text-xs">
+                            <span className="text-white font-medium truncate">{g.name}</span>
+                            <span className={`shrink-0 font-gaming px-2 py-0.5 rounded-full border ${assigned ? "text-green-400 border-green-500/30 bg-green-500/10" : "text-amber-400 border-amber-500/30 bg-amber-500/10"}`}>
+                              {assigned ? `✓ ${g.judgeName ?? "Juez"}` : "Sin juez"}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+
                 {tournament.status === "REGISTRATION" && (
                   <div className="card overflow-hidden">
                     <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
@@ -403,6 +475,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                   const canDelete = isAdmin && realPlayerCount === 0;
                   const canFill = isAdmin && slots > 0 && byeCount < 3;
                   const eligibleJudges = staffUsers.filter((u) => {
+                    if (u.availableAsJudge !== true) return false;
                     const asPlayer = players.find((p) => p.userId === u.uid);
                     return !asPlayer || !g.playerIds.includes(asPlayer.id);
                   });

@@ -10,8 +10,9 @@ service cloud.firestore {
     function isStaff() { return isAuth() && (role() == "staff" || role() == "admin"); }
 
     // ── Users ─────────────────────────────────────────────────────────────────
+    // Lectura pública: registro comprueba nombre antes de crear cuenta (sin sesión).
     match /users/{userId} {
-      allow read:   if true;  // needed for displayName uniqueness check before login
+      allow read:   if true;
       allow create: if isAuth() && uid() == userId;
       allow update: if uid() == userId || isAdmin();
       allow delete: if isAdmin();
@@ -20,8 +21,10 @@ service cloud.firestore {
     // ── Players ───────────────────────────────────────────────────────────────
     match /players/{playerId} {
       allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
+      allow create: if isStaff()
+        || (isAuth() && request.resource.data.userId == uid());
+      allow update: if isStaff()
+        || (isAuth() && resource.data.userId == uid());
       allow delete: if isAdmin();
     }
 
@@ -76,6 +79,13 @@ service cloud.firestore {
       match /matches/{matchId} {
         allow read:   if true;
         allow write:  if isStaff();
+
+        // Auditoría de anotaciones (append-only; solo staff)
+        match /scoreAudit/{auditId} {
+          allow create: if isStaff();
+          allow read:   if isStaff();
+          allow update, delete: if false;
+        }
       }
 
       // Check-ins

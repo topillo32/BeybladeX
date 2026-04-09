@@ -7,8 +7,12 @@ import type { Player, TournamentGroup, Match } from "@/types";
 
 const groupsCol = (tId: string) => collection(db, "tournaments", tId, "groups");
 
-export const assignJudge = async (tId: string, gId: string, judgeId: string, judgeName: string) =>
-  updateDoc(doc(db, "tournaments", tId, "groups", gId), { judgeId, judgeName });
+export const assignJudge = async (tId: string, gId: string, judgeId: string, judgeName: string) => {
+  const snap = await getDocs(groupsCol(tId));
+  const busy = snap.docs.some((d) => d.id !== gId && d.data().judgeId === judgeId);
+  if (busy) throw new Error("Este juez ya tiene otro grupo asignado.");
+  await updateDoc(doc(db, "tournaments", tId, "groups", gId), { judgeId, judgeName });
+};
 
 export const removeJudge = async (tId: string, gId: string) =>
   updateDoc(doc(db, "tournaments", tId, "groups", gId), { judgeId: null, judgeName: null });
