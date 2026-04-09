@@ -1,6 +1,6 @@
 {
-  "/page": "app/page.js",
-  "/auth/page": "app/auth/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/(admin)/dashboard/page": "app/(admin)/dashboard/page.js",
+  "/(admin)/users/page": "app/(admin)/users/page.js",
   "/(admin)/tournaments/[tournamentId]/page": "app/(admin)/tournaments/[tournamentId]/page.js"
 }
