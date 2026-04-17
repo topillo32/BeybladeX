@@ -26,7 +26,7 @@ import type { CheckIn } from "@/services/checkInService";
 
 import { useEffect } from "react";
 
-type Tab = "overview" | "groups" | "matches" | "standings" | "bracket" | "checkin";
+type Tab = "overview" | "groups" | "matches" | "standings" | "bracket" | "checkin" | "danger";
 
 const NEXT_STATUS: Partial<Record<TournamentStatus, TournamentStatus>> = {
   DRAFT: "REGISTRATION", REGISTRATION: "GROUP_STAGE",
@@ -171,6 +171,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
     { key: "standings", label: t("standings"), icon: "📈" },
     { key: "bracket",   label: t("bracket"),   icon: "🏆" },
     ...(isAdmin ? [{ key: "checkin" as Tab, label: "Check-In", icon: "✅" }] : []),
+    ...(isAdmin ? [{ key: "danger" as Tab, label: "Admin", icon: "⚠️" }] : []),
   ];
 
   return (
@@ -666,9 +667,45 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                 )}
               </div>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+
+                    {tab === "danger" && isAdmin && (
+                    <div className="card space-y-6 border-red-500/20">
+                    <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                    <span className="text-2xl">⚠️</span>
+                    <div>
+                    <h2 className="font-gaming text-lg text-red-400">Zona de Peligro</h2>
+                    <p className="text-white/50 text-xs">Acciones administrativas avanzadas.</p>
+                    </div>
+                    </div>
+
+                    {tournament.status === "FINISHED" ? (
+                    <div className="p-4 bg-red-950/30 rounded-xl border border-red-500/20 space-y-3">
+                    <div>
+                      <p className="text-sm text-white font-bold">Reabrir Torneo</p>
+                      <p className="text-xs text-white/60 mt-1">Si finalizaste el torneo por error y necesitas modificar resultados (ej. la final), puedes reabrir el torneo. Volverá a la fase de Eliminatoria.</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (window.confirm("¿Estás seguro de reabrir este torneo? Volverá al estado 'KNOCKOUT'.")) {
+                          run(() => updateTournament(tournamentId, { status: "KNOCKOUT", finishedAt: null as any }));
+                        }
+                      }}
+                      disabled={working}
+                      className="btn-danger w-full sm:w-auto text-xs py-2 px-4"
+                    >
+                      Reabrir Torneo
+                    </button>
+                    </div>
+                    ) : (
+                    <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                    <p className="text-xs text-white/60">No hay acciones de peligro disponibles para el estado actual del torneo ({tournament.status}).</p>
+                    </div>
+                    )}
+                    </div>
+                    )}
+                    </div>
+                    </div>
+                    </div>
+                    </div>
+                    );
+                    }

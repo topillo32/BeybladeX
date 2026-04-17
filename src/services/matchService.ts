@@ -285,7 +285,11 @@ export const updateMatchScore = async (
         const PHASE_ORDER: MatchPhase[] = ["ROUND_OF_128","ROUND_OF_64","ROUND_OF_32","ROUND_OF_16","QUARTERFINAL","SEMIFINAL","THIRD_PLACE","FINAL"];
         const currentIdx = PHASE_ORDER.indexOf(data.phase as MatchPhase);
         if (currentIdx !== -1) {
-          const laterPhases = PHASE_ORDER.slice(currentIdx + 1);
+          let laterPhases = PHASE_ORDER.slice(currentIdx + 1);
+          // THIRD_PLACE and FINAL are parallel phases. FINAL should not lock THIRD_PLACE.
+          if (data.phase === "THIRD_PLACE") {
+            laterPhases = laterPhases.filter(p => p !== "FINAL");
+          }
           const matchesCol = col(db, "tournaments", tournamentId, "matches");
           for (const phase of laterPhases) {
             const laterSnap = await gds(q(matchesCol, w("phase", "==", phase)));
@@ -396,7 +400,11 @@ export const undoLastScore = async (
         const PHASE_ORDER: MatchPhase[] = ["ROUND_OF_128","ROUND_OF_64","ROUND_OF_32","ROUND_OF_16","QUARTERFINAL","SEMIFINAL","THIRD_PLACE","FINAL"];
         const currentIdx = PHASE_ORDER.indexOf(data.phase as MatchPhase);
         if (currentIdx !== -1) {
-          const laterPhases = PHASE_ORDER.slice(currentIdx + 1);
+          let laterPhases = PHASE_ORDER.slice(currentIdx + 1);
+          // THIRD_PLACE and FINAL are parallel phases. FINAL should not lock THIRD_PLACE.
+          if (data.phase === "THIRD_PLACE") {
+            laterPhases = laterPhases.filter(p => p !== "FINAL");
+          }
           const matchesCol = col(db, "tournaments", tournamentId, "matches");
           for (const phase of laterPhases) {
             const laterSnap = await gds(q(matchesCol, w("phase", "==", phase)));

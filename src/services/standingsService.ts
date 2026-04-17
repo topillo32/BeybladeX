@@ -65,6 +65,45 @@ export const computeGlobalStandings = (
     const gPlayers = players.filter((p) => g.playerIds.includes(p.id));
     all.push(...computeGroupStandings(matches, gPlayers, g.id, g.withdrawnPlayerIds ?? []));
   });
+
+  // Include knockout matches stats into the standings
+  const knockoutMatches = matches.filter((m) => m.phase !== "GROUP" && m.isFinished);
+  knockoutMatches.forEach((m) => {
+    const aIsGhost = m.playerA.id.startsWith("bye-");
+    const bIsGhost = m.playerB.id.startsWith("bye-");
+
+    const pA = all.find((s) => s.playerId === m.playerA.id);
+    const pB = all.find((s) => s.playerId === m.playerB.id);
+
+    if (pA && !aIsGhost) {
+      pA.played++;
+      pA.pointsFor += m.playerAScore;
+      // If opponent is ghost, don't count as real win/loss, or maybe we do? 
+      // Usually a BYE in knockout gives a free win, but we'll follow group logic:
+      if (!bIsGhost) {
+        pA.pointsAgainst += m.playerBScore;
+        if (m.winnerId === m.playerA.id) pA.wins++;
+        else if (m.winnerId === m.playerB.id) pA.losses++;
+      } else {
+        if (m.winnerId === m.playerA.id) pA.wins++;
+      }
+      pA.diff = pA.pointsFor - pA.pointsAgainst;
+    }
+
+    if (pB && !bIsGhost) {
+      pB.played++;
+      pB.pointsFor += m.playerBScore;
+      if (!aIsGhost) {
+        pB.pointsAgainst += m.playerAScore;
+        if (m.winnerId === m.playerB.id) pB.wins++;
+        else if (m.winnerId === m.playerA.id) pB.losses++;
+      } else {
+        if (m.winnerId === m.playerB.id) pB.wins++;
+      }
+      pB.diff = pB.pointsFor - pB.pointsAgainst;
+    }
+  });
+
   return all.sort((a, b) =>
     b.wins !== a.wins ? b.wins - a.wins : b.pointsFor - a.pointsFor
   );

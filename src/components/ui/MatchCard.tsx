@@ -46,7 +46,11 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
 
   const PHASE_ORDER = ["GROUP","ROUND_OF_128","ROUND_OF_64","ROUND_OF_32","ROUND_OF_16","QUARTERFINAL","SEMIFINAL","THIRD_PLACE","FINAL"];
   const currentIdx = PHASE_ORDER.indexOf(m.phase);
-  const hasLaterPhase = allMatches.some((x) => PHASE_ORDER.indexOf(x.phase) > currentIdx);
+  const hasLaterPhase = allMatches.some((x) => {
+    const xIdx = PHASE_ORDER.indexOf(x.phase);
+    if (m.phase === "THIRD_PLACE" && x.phase === "FINAL") return false;
+    return xIdx > currentIdx;
+  });
 
   const phaseLocked =
     tournamentStatus === "FINISHED" ||
