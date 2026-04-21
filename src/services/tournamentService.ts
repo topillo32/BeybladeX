@@ -8,7 +8,7 @@ import type { Tournament, TournamentStatus } from "@/types";
 const col = collection(db, "tournaments");
 
 export const createTournament = async (
-  data: Pick<Tournament, "name" | "maxPlayers" | "playersPerGroup"> & { eventType: import("@/types").EventType; leagueId?: string },
+  data: Pick<Tournament, "name" | "maxPlayers" | "playersPerGroup"> & { location?: string; eventType: import("@/types").EventType; leagueId?: string },
   uid: string
 ) => {
   await addDoc(col, {
