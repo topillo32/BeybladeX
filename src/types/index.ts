@@ -45,6 +45,7 @@ export type EventType = "tournament" | "league_event";
 export interface Tournament {
   id: string;
   name: string;
+  location?: string;
   status: TournamentStatus;
   eventType: EventType;
   leagueId?: string;

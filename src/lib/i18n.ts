@@ -15,7 +15,7 @@ export const translations = {
     login: "Login",
     createAccount: "Create Account",
     email: "Email",
-    password: "Password",
+    pw: "Password",
     displayName: "Display name",
     authFailed: "Authentication failed.",
     viewPublic: "View public tournaments →",
@@ -161,6 +161,7 @@ export const translations = {
     participants: "Participants",
     noParticipantsYet: "No participants yet",
     registrationOpen: "Registration open",
+    myRegistration: "My Registration",
   },
   es: {
     // Nav
@@ -178,7 +179,7 @@ export const translations = {
     login: "Entrar",
     createAccount: "Crear cuenta",
     email: "Correo electrónico",
-    password: "Contraseña",
+    pw: "Contraseña",
     displayName: "Nombre de usuario",
     authFailed: "Error de autenticación.",
     viewPublic: "Ver torneos públicos →",
@@ -324,6 +325,7 @@ export const translations = {
     participants: "Participantes",
     noParticipantsYet: "Aún no hay participantes inscritos",
     registrationOpen: "Registro abierto",
+    myRegistration: "Mi Inscripción",
   },
 } as const;
 

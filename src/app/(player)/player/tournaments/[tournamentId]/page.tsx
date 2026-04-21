@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { useTournament, useGroups, useMatches, usePlayers } from "@/hooks/useTournament";
+import { useTournament, useGroups, useMatches, usePlayers, useCurrentPlayer } from "@/hooks/useTournament";
 import { computeGlobalStandings, computeGroupStandings } from "@/services/standingsService";
 import { TournamentStepper } from "@/components/ui/TournamentStepper";
 import { StatusBadge } from "@/components/ui/Badges";
@@ -22,12 +22,12 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
   const { players } = usePlayers(tournamentId);
   const { t } = useLang();
   const { user } = useAuthContext();
+  const { player: myPlayer } = useCurrentPlayer(user?.uid);
   const [tab, setTab] = useState<Tab>("overview");
 
   if (loading) return <Spinner size={12} />;
   if (!tournament) return <div className="page-wrapper"><p className="text-gray-400">{t("tournamentNotFound")}</p></div>;
 
-  const myPlayer = players.find((p) => p.userId === user?.uid);
   const groupMatches = matches.filter((m) => m.phase === "GROUP");
   const knockoutMatches = matches.filter((m) => m.phase !== "GROUP");
   const globalStandings = computeGlobalStandings(groups, matches, players);
@@ -51,6 +51,9 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
             <h1 className="font-gaming text-2xl font-black tracking-widest text-white flex-1">{tournament.name}</h1>
             <StatusBadge status={tournament.status} />
           </div>
+          {tournament.location && (
+            <p className="text-gray-400 text-sm mt-1">📍 {tournament.location}</p>
+          )}
         </div>
 
         <div className="card p-4">
@@ -71,6 +74,7 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
 
         <div className="animate-fade-in" key={tab}>
           {tab === "overview" && (
+            <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: t("players"),    value: players.length,  icon: "👤" },
@@ -84,6 +88,7 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
                   <p className="text-gray-400 text-xs">{s.label}</p>
                 </div>
               ))}
+            </div>
             </div>
           )}
 

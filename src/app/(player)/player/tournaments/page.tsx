@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useTournaments } from "@/hooks/useTournament";
 import { getPlayerByUserId, enrollPlayerInTournament, leavePlayerFromTournament } from "@/services/playerService";
@@ -15,6 +16,7 @@ export default function PlayerTournamentsPage() {
   const { user } = useAuthContext();
   const { tournaments, loading } = useTournaments();
   const { t } = useLang();
+  const router = useRouter();
 
   const [player, setPlayer] = useState<Player | null | undefined>(undefined);
   const [enrolling, setEnrolling] = useState<string | null>(null);
@@ -48,6 +50,7 @@ export default function PlayerTournamentsPage() {
       await enrollPlayerInTournament(player.id, tournament.id, tournament.status);
       const updated = await getPlayerByUserId(user!.uid);
       setPlayer(updated);
+      router.refresh();
     } finally {
       setEnrolling(null);
     }
@@ -61,6 +64,7 @@ export default function PlayerTournamentsPage() {
       await leavePlayerFromTournament(player.id, tournament.id);
       const updated = await getPlayerByUserId(user!.uid);
       setPlayer(updated);
+      router.refresh();
     } catch (e: any) {
       alert(e.message);
     } finally {

@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTournament, useGroups, useMatches, usePlayers } from "@/hooks/useTournament";
 import { computeGroupStandings, computeGlobalStandings } from "@/services/standingsService";
 import { StatusBadge } from "@/components/ui/Badges";
@@ -10,6 +11,10 @@ import { MatchCard } from "@/components/ui/MatchCard";
 import { Spinner } from "@/components/ui/Spinner";
 import { useLang } from "@/lib/LangContext";
 import { LangToggle } from "@/components/ui/LangToggle";
+import { useAuthContext } from "@/lib/AuthContext";
+import { getPlayerByUserId, enrollPlayerInTournament, leavePlayerFromTournament } from "@/services/playerService";
+import type { Player } from "@/types";
+import { OPEN_REGISTRATION_STATUSES as OPEN_REG } from "@/types";
 
 type Tab = "participants" | "groups" | "matches" | "standings" | "bracket";
 
@@ -20,7 +25,18 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
   const { matches } = useMatches(tournamentId);
   const { players } = usePlayers(tournamentId);
   const { t } = useLang();
+  const { user } = useAuthContext();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("participants");
+  const [player, setPlayer] = useState<Player | null | undefined>(undefined);
+  const [enrolling, setEnrolling] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) { setPlayer(null); return; }
+    getPlayerByUserId(user.uid).then(setPlayer);
+  }, [user]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center"><Spinner /></div>
@@ -31,7 +47,46 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
   const knockoutMatches = matches.filter((m) => m.phase !== "GROUP");
   const globalStandings = computeGlobalStandings(groups, matches, players);
   const liveMatches     = matches.filter((m) => !m.isFinished);
-  const registeredNames = [...(tournament.registeredPlayerNames ?? [])].sort();
+  const registeredNames = players.map((p) => p.name).sort();
+
+  const canEnroll = player && OPEN_REG.includes(tournament.status);
+  const myStatus = !player ? null
+    : player.tournamentIds?.includes(tournamentId) ? "enrolled"
+    : player.pendingTournamentIds?.includes(tournamentId) ? "pending"
+    : "none";
+
+  const handleEnroll = async () => {
+    if (!player) return;
+    setEnrolling(true);
+    setActionError(null);
+    try {
+      await enrollPlayerInTournament(player.id, tournamentId, tournament.status);
+      const updated = await getPlayerByUserId(user!.uid);
+      setPlayer(updated);
+      router.refresh();
+    } catch (e: any) {
+      setActionError(e.message);
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!player) return;
+    if (!confirm(`¿Seguro que quieres salir de "${tournament.name}"?`)) return;
+    setLeaving(true);
+    setActionError(null);
+    try {
+      await leavePlayerFromTournament(player.id, tournamentId);
+      const updated = await getPlayerByUserId(user!.uid);
+      setPlayer(updated);
+      router.refresh();
+    } catch (e: any) {
+      setActionError(e.message);
+    } finally {
+      setLeaving(false);
+    }
+  };
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
     { key: "participants", label: t("participants"), icon: "👤" },
@@ -49,6 +104,9 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
           <div className="flex justify-end"><LangToggle /></div>
           <StatusBadge status={tournament.status} />
           <h1 className="font-gaming text-3xl font-black tracking-widest text-white">{tournament.name}</h1>
+          {tournament.location && (
+            <p className="text-white/70 text-sm">📍 {tournament.location}</p>
+          )}
           {liveMatches.length > 0 && (
             <div className="flex items-center justify-center gap-2">
               <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
@@ -63,6 +121,40 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
         <div className="card p-4">
           <TournamentStepper status={tournament.status} />
         </div>
+
+        {/* Botón de inscripción — visible para todos cuando el torneo está abierto */}
+        {OPEN_REG.includes(tournament.status) && (
+          <div className="card p-4 space-y-2">
+            {actionError && <p className="text-red-400 text-xs text-center">{actionError}</p>}
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-white font-semibold text-sm">📋 {t("registrationOpen")}</p>
+                {myStatus === "enrolled" && <p className="text-green-400 text-xs font-gaming mt-0.5">✅ {t("alreadyEnrolled")}</p>}
+                {myStatus === "pending"  && <p className="text-amber-400 text-xs font-gaming mt-0.5">⏳ {t("pendingEnrollment")}</p>}
+                {!user && <p className="text-white/50 text-xs mt-0.5">{t("signIn")} para inscribirte</p>}
+              </div>
+              <div className="flex gap-2 shrink-0">
+                {!user && (
+                  <a href={`/auth?redirect=/t/${tournamentId}`} className="btn-primary font-gaming text-xs tracking-wider py-2 px-4">
+                    {t("signIn")}
+                  </a>
+                )}
+                {user && myStatus === "none" && (
+                  <button onClick={handleEnroll} disabled={enrolling || !player}
+                    className="btn-primary font-gaming text-xs tracking-wider py-2 px-4 disabled:opacity-50">
+                    {enrolling ? "..." : tournament.status === "GROUP_STAGE" ? t("requestEnroll") : t("enrollMe")}
+                  </button>
+                )}
+                {user && (myStatus === "enrolled" || myStatus === "pending") && (
+                  <button onClick={handleLeave} disabled={leaving}
+                    className="font-gaming text-xs text-red-400 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-2 rounded-lg transition-all disabled:opacity-50">
+                    {leaving ? "..." : myStatus === "pending" ? "✕ Cancelar" : "✕ Salir"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-1 p-1 bg-white/5 rounded-xl overflow-x-auto">
           {TABS.map((tb) => (

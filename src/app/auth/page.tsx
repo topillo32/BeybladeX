@@ -18,6 +18,8 @@ const validatePassword = (pw: string): string | null => {
 export default function AuthPage() {
   const { t, lang, setLang } = useLang();
   const [mode, setMode] = useState<"login" | "register" | "reset">("login");
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const redirectTo = searchParams?.get("redirect") ?? null;
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
@@ -67,7 +69,7 @@ export default function AuthPage() {
         const userData = await getUserData(cred.user.uid);
         // If user doc missing, useAuth will recover it — redirect to player by default
         const role = userData?.role ?? "player";
-        router.push(role === "player" ? "/player/tournaments" : "/dashboard");
+        router.push(redirectTo ?? (role === "player" ? "/player/tournaments" : "/dashboard"));
       } else {
         // Check name uniqueness (case-insensitive)
         const nameTaken = await checkDisplayNameTaken(name.trim());
@@ -76,7 +78,7 @@ export default function AuthPage() {
           return;
         }
         await registerUser(email, password, name.trim());
-        router.push("/player/tournaments");
+        router.push(redirectTo ?? "/player/tournaments");
       }
     } catch (err: any) {
       console.error("Auth error:", err);
@@ -205,7 +207,7 @@ export default function AuthPage() {
                 type="password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: "" })); }}
-                placeholder={t("password")}
+                placeholder={t("pw")}
                 className={`input-base ${fe.password ? "border-red-500/50" : ""}`}
                 required
               />

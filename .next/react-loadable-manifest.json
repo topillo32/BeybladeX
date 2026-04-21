@@ -21,7 +21,9 @@
   },
   "services\\matchService.ts -> ./judgeService": {
     "id": "services\\matchService.ts -> ./judgeService",
-    "files": []
+    "files": [
+      "static/chunks/_app-pages-browser_src_services_judgeService_ts.js"
+    ]
   },
   "services\\matchService.ts -> firebase/firestore": {
     "id": "services\\matchService.ts -> firebase/firestore",

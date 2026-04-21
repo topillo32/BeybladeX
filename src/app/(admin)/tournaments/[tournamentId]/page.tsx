@@ -214,6 +214,20 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
               <h1 className="font-gaming text-lg font-black tracking-widest text-white flex-1 leading-tight min-w-[8rem]">{tournament.name}</h1>
               <StatusBadge status={tournament.status} />
               {isStaff && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/t/${tournamentId}`);
+                    setNotice("🔗 Link copiado al portapapeles");
+                    setTimeout(() => setNotice(null), 3000);
+                  }}
+                  className="shrink-0 text-xs font-gaming tracking-wider px-3 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition-all"
+                  title="Copiar link de inscripción pública"
+                >
+                  🔗 Link
+                </button>
+              )}
+              {isStaff && (
                 <Link
                   href={`/tournaments/${tournamentId}/scoring`}
                   className="shrink-0 text-xs font-gaming tracking-wider px-3 py-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transition-all"

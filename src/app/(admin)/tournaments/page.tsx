@@ -15,6 +15,7 @@ export default function TournamentsPage() {
   const { user, isAdmin } = useAuthContext();
   const { t } = useLang();
   const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
   const [maxPlayers, setMaxPlayers] = useState(16);
   const [eventType, setEventType] = useState<EventType>("tournament");
   const [leagueId, setLeagueId] = useState("");
@@ -30,12 +31,14 @@ export default function TournamentsPage() {
     try {
       await createTournament({
         name: name.trim(),
+        location: location.trim() || undefined,
         maxPlayers,
         playersPerGroup: 4,
         eventType,
         ...(eventType === "league_event" && leagueId ? { leagueId } : {}),
       }, user.uid);
       setName("");
+      setLocation("");
       setEventType("tournament");
       setLeagueId("");
     } catch (err: any) {
@@ -75,6 +78,8 @@ export default function TournamentsPage() {
             <form onSubmit={handleCreate} className="space-y-3">
               <input type="text" value={name} onChange={(e) => setName(e.target.value)}
                 placeholder={t("tournamentName")} className="input-base" required />
+              <input type="text" value={location} onChange={(e) => setLocation(e.target.value)}
+                placeholder="📍 Ubicación (opcional)" className="input-base text-sm" />
               <div>
                 <label className="section-title block mb-1">{t("maxPlayers")}</label>
                 <input type="number" value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))}
@@ -153,9 +158,14 @@ export default function TournamentsPage() {
                 <li key={tournament.id} className="flex items-center justify-between px-4 py-3.5 hover:bg-white/3 transition-colors">
                   <div className="flex items-center gap-2 min-w-0">
                     <StatusBadge status={tournament.status} />
-                    <Link href={`/tournaments/${tournament.id}`} className="font-semibold text-white hover:text-cyan-400 transition-colors truncate text-sm">
-                      {tournament.name}
-                    </Link>
+                    <div className="min-w-0">
+                      <Link href={`/tournaments/${tournament.id}`} className="font-semibold text-white hover:text-cyan-400 transition-colors truncate text-sm block">
+                        {tournament.name}
+                      </Link>
+                      {tournament.location && (
+                        <p className="text-white/50 text-xs truncate">📍 {tournament.location}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 ml-2">
                     <Link href={`/tournaments/${tournament.id}`} className="btn-primary text-xs py-1.5 px-3 font-gaming tracking-wider">

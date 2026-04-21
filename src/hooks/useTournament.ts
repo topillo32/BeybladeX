@@ -101,7 +101,7 @@ export const usePlayers = (tournamentId?: string) => {
         setLoading(false);
       },
       (err) => {
-        console.error("usePlayers error:", err.code, err.message);
+        console.error("usePlayers error:", String(err.code).replace(/\n|\r/g, ""), String(err.message).replace(/\n|\r/g, ""));
         setLoading(false);
       }
     );
@@ -131,6 +131,20 @@ export const useUnenrolledPlayers = (tournamentId: string) => {
   }, [tournamentId]);
 
   return { players };
+};
+
+export const useCurrentPlayer = (uid: string | undefined) => {
+  const [player, setPlayer] = useState<Player | null>(null);
+
+  useEffect(() => {
+    if (!uid) return;
+    return onSnapshot(
+      query(collection(db, "players"), where("userId", "==", uid)),
+      (snap) => setPlayer(snap.empty ? null : ({ id: snap.docs[0].id, ...snap.docs[0].data() } as Player))
+    );
+  }, [uid]);
+
+  return { player };
 };
 
 export const usePendingPlayers = (tournamentId: string) => {
