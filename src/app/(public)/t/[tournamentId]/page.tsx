@@ -25,7 +25,7 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
   const { matches } = useMatches(tournamentId);
   const { players } = usePlayers(tournamentId);
   const { t } = useLang();
-  const { user } = useAuthContext();
+  const { user, loading: authLoading } = useAuthContext();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("participants");
   const [player, setPlayer] = useState<Player | null | undefined>(undefined);
@@ -34,9 +34,10 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) { setPlayer(null); return; }
     getPlayerByUserId(user.uid).then(setPlayer);
-  }, [user]);
+  }, [user, authLoading]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center"><Spinner /></div>
@@ -131,25 +132,31 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
                 <p className="text-white font-semibold text-sm">📋 {t("registrationOpen")}</p>
                 {myStatus === "enrolled" && <p className="text-green-400 text-xs font-gaming mt-0.5">✅ {t("alreadyEnrolled")}</p>}
                 {myStatus === "pending"  && <p className="text-amber-400 text-xs font-gaming mt-0.5">⏳ {t("pendingEnrollment")}</p>}
-                {!user && <p className="text-white/50 text-xs mt-0.5">{t("signIn")} para inscribirte</p>}
+                {!authLoading && !user && <p className="text-white/50 text-xs mt-0.5">{t("signIn")} para inscribirte</p>}
               </div>
               <div className="flex gap-2 shrink-0">
-                {!user && (
-                  <a href={`/auth?redirect=/t/${tournamentId}`} className="btn-primary font-gaming text-xs tracking-wider py-2 px-4">
-                    {t("signIn")}
-                  </a>
-                )}
-                {user && myStatus === "none" && (
-                  <button onClick={handleEnroll} disabled={enrolling || !player}
-                    className="btn-primary font-gaming text-xs tracking-wider py-2 px-4 disabled:opacity-50">
-                    {enrolling ? "..." : tournament.status === "GROUP_STAGE" ? t("requestEnroll") : t("enrollMe")}
-                  </button>
-                )}
-                {user && (myStatus === "enrolled" || myStatus === "pending") && (
-                  <button onClick={handleLeave} disabled={leaving}
-                    className="font-gaming text-xs text-red-400 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-2 rounded-lg transition-all disabled:opacity-50">
-                    {leaving ? "..." : myStatus === "pending" ? "✕ Cancelar" : "✕ Salir"}
-                  </button>
+                {authLoading || player === undefined ? (
+                  <div className="w-24 h-8 rounded-lg bg-white/10 animate-pulse" />
+                ) : (
+                  <>
+                    {!user && (
+                      <a href={`/auth?redirect=/t/${tournamentId}`} className="btn-primary font-gaming text-xs tracking-wider py-2 px-4">
+                        {t("signIn")}
+                      </a>
+                    )}
+                    {user && myStatus === "none" && (
+                      <button onClick={handleEnroll} disabled={enrolling || !player}
+                        className="btn-primary font-gaming text-xs tracking-wider py-2 px-4 disabled:opacity-50">
+                        {enrolling ? "..." : tournament.status === "GROUP_STAGE" ? t("requestEnroll") : t("enrollMe")}
+                      </button>
+                    )}
+                    {user && (myStatus === "enrolled" || myStatus === "pending") && (
+                      <button onClick={handleLeave} disabled={leaving}
+                        className="font-gaming text-xs text-red-400 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-2 rounded-lg transition-all disabled:opacity-50">
+                        {leaving ? "..." : myStatus === "pending" ? "✕ Cancelar" : "✕ Salir"}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
