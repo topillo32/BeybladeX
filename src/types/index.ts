@@ -29,6 +29,7 @@ export interface LeagueStandingEntry {
   wins: number;        // jornadas won (1st place)
   podiums: number;     // top-3 finishes
   roundsPlayed: number;
+  pointsFor: number;   // tiebreaker
 }
 
 // ─── Tournament ───────────────────────────────────────────────────────────────

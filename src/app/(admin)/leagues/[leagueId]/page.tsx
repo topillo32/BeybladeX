@@ -39,6 +39,7 @@ export default function LeagueDetailPage({ params }: { params: { leagueId: strin
                   <th className="px-4 py-2.5 text-left section-title">#</th>
                   <th className="px-4 py-2.5 text-left section-title">{t("player")}</th>
                   <th className="px-4 py-2.5 text-center section-title">🏆 {t("wins")}</th>
+                  <th className="px-4 py-2.5 text-center section-title">⚡ {t("points")}</th>
                   <th className="px-4 py-2.5 text-center section-title">{t("rounds")}</th>
                 </tr>
               </thead>
@@ -54,6 +55,7 @@ export default function LeagueDetailPage({ params }: { params: { leagueId: strin
                     </td>
                     <td className="px-4 py-3 font-medium text-white">{s.playerName}</td>
                     <td className="px-4 py-3 text-center font-gaming font-black text-cyan-400 text-lg">{s.wins}</td>
+                    <td className="px-4 py-3 text-center font-gaming text-sm text-gray-300">{s.pointsFor}</td>
                     <td className="px-4 py-3 text-center text-gray-400 font-gaming text-xs">{s.roundsPlayed}</td>
                   </tr>
                 ))}

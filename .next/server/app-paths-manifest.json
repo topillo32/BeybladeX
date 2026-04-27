@@ -1,1 +1,7 @@
-{}
+{
+  "/page": "app/page.js",
+  "/auth/page": "app/auth/page.js",
+  "/(admin)/dashboard/page": "app/(admin)/dashboard/page.js",
+  "/(admin)/leagues/page": "app/(admin)/leagues/page.js",
+  "/(admin)/leagues/[leagueId]/page": "app/(admin)/leagues/[leagueId]/page.js"
+}

@@ -35,7 +35,7 @@ export const computeLeagueStandings = async (leagueId: string): Promise<LeagueSt
   const map = new Map<string, LeagueStandingEntry>();
 
   const ensure = (id: string, name: string, userId?: string) => {
-    if (!map.has(id)) map.set(id, { playerId: id, playerName: name, userId, wins: 0, podiums: 0, roundsPlayed: 0 });
+    if (!map.has(id)) map.set(id, { playerId: id, playerName: name, userId, wins: 0, podiums: 0, roundsPlayed: 0, pointsFor: 0 });
     return map.get(id)!;
   };
 
@@ -53,17 +53,25 @@ export const computeLeagueStandings = async (leagueId: string): Promise<LeagueSt
     const participantIds = new Set<string>();
 
     for (const m of matches) {
-      // Skip bye matches
-      if (m.playerA.id.startsWith("bye-") || m.playerB.id.startsWith("bye-")) continue;
+      const aIsBye = m.playerA.id.startsWith("bye-");
+      const bIsBye = m.playerB.id.startsWith("bye-");
 
-      const playerA = ensure(m.playerA.id, m.playerA.name, playerUserMap.get(m.playerA.id));
-      const playerB = ensure(m.playerB.id, m.playerB.name, playerUserMap.get(m.playerB.id));
+      // Skip bye vs bye
+      if (aIsBye && bIsBye) continue;
 
-      participantIds.add(m.playerA.id);
-      participantIds.add(m.playerB.id);
+      if (!aIsBye) {
+        const playerA = ensure(m.playerA.id, m.playerA.name, playerUserMap.get(m.playerA.id));
+        participantIds.add(m.playerA.id);
+        playerA.pointsFor += m.playerAScore;
+        if (m.winnerId === m.playerA.id) playerA.wins += 1;
+      }
 
-      if (m.winnerId === m.playerA.id) playerA.wins += 1;
-      else if (m.winnerId === m.playerB.id) playerB.wins += 1;
+      if (!bIsBye) {
+        const playerB = ensure(m.playerB.id, m.playerB.name, playerUserMap.get(m.playerB.id));
+        participantIds.add(m.playerB.id);
+        playerB.pointsFor += m.playerBScore;
+        if (m.winnerId === m.playerB.id) playerB.wins += 1;
+      }
     }
 
     // Count this event as a round played for each participant
@@ -74,6 +82,8 @@ export const computeLeagueStandings = async (leagueId: string): Promise<LeagueSt
   }
 
   return Array.from(map.values()).sort((a, b) =>
-    b.wins !== a.wins ? b.wins - a.wins : b.roundsPlayed - a.roundsPlayed
+    b.wins !== a.wins ? b.wins - a.wins :
+    b.pointsFor !== a.pointsFor ? b.pointsFor - a.pointsFor :
+    b.roundsPlayed - a.roundsPlayed
   );
 };
