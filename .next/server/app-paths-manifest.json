@@ -1,7 +1,3 @@
 {
-  "/page": "app/page.js",
-  "/auth/page": "app/auth/page.js",
-  "/(admin)/dashboard/page": "app/(admin)/dashboard/page.js",
-  "/(player)/player/tournaments/page": "app/(player)/player/tournaments/page.js",
-  "/(player)/player/tournaments/[tournamentId]/page": "app/(player)/player/tournaments/[tournamentId]/page.js"
+  "/(admin)/tournaments/[tournamentId]/page": "app/(admin)/tournaments/[tournamentId]/page.js"
 }

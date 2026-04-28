@@ -53,6 +53,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const [showAddPlayers, setShowAddPlayers] = useState(false);
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn>>({});
   const [selectedQualifiers, setSelectedQualifiers] = useState<number>(0);
+  const [matchGroupFilter, setMatchGroupFilter] = useState<string>("all");
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -583,16 +584,47 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
               </div>
             )}
 
-            {tab === "matches" && (
-              <div className="space-y-4">
-                {groupMatches.length === 0 ? (
-                  <div className="card p-10 text-center">
-                    <p className="text-4xl mb-3">⚔️</p>
-                    <p className="text-white font-semibold">{t("noMatchesYet")}</p>
-                  </div>
-                ) : (
+            {tab === "matches" && (() => {
+              if (groupMatches.length === 0) return (
+                <div className="card p-10 text-center">
+                  <p className="text-4xl mb-3">⚔️</p>
+                  <p className="text-white font-semibold">{t("noMatchesYet")}</p>
+                </div>
+              );
+
+              const filteredMatches = matchGroupFilter === "all"
+                ? groupMatches
+                : groupMatches.filter((m) => m.groupId === matchGroupFilter);
+
+              const sorted = [...filteredMatches].sort((a, b) => {
+                if (a.isFinished === b.isFinished) return 0;
+                return a.isFinished ? 1 : -1;
+              });
+
+              return (
+                <div className="space-y-4">
+                  {/* Filtro por grupo */}
+                  {groups.length > 1 && (
+                    <select
+                      value={matchGroupFilter}
+                      onChange={(e) => setMatchGroupFilter(e.target.value)}
+                      className="input-base text-sm w-full sm:w-auto"
+                    >
+                      <option value="all">Todos los grupos</option>
+                      {[...groups].sort((a, b) => a.name.localeCompare(b.name)).map((g) => {
+                        const pending = groupMatches.filter((m) => m.groupId === g.id && !m.isFinished).length;
+                        const isMyGroup = g.judgeId === user?.uid;
+                        return (
+                          <option key={g.id} value={g.id}>
+                            {isMyGroup ? "⚖️ " : ""}{g.name}{pending > 0 ? ` (${pending} pendiente${pending > 1 ? "s" : ""})` : " ✓"}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
+
                   <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {groupMatches.map((m) => {
+                    {sorted.map((m) => {
                       const group = groups.find((g) => g.id === m.groupId);
                       return (
                         <MatchCard
@@ -610,9 +642,9 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                       );
                     })}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })()}
 
             {tab === "standings" && (
               <div className="space-y-4">

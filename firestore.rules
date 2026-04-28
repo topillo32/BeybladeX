@@ -7,8 +7,7 @@ service cloud.firestore {
     function uid()     { return request.auth.uid; }
 
     function role() {
-      let doc = get(/databases/$(database)/documents/users/$(uid()));
-      return isAuth() && doc.exists() ? doc.data.role : null;
+      return isAuth() ? get(/databases/$(database)/documents/users/$(uid())).data.role : null;
     }
 
     function isAdmin() { return role() == "admin"; }

@@ -10,7 +10,7 @@ import { useAuthContext } from "@/lib/AuthContext";
 import { Match, FINISH_TYPES, Player, FinishType } from "@/types";
 import { ComboVerifier } from "./ComboVerifier";
 
-interface Props { tournamentId: string; matchId: string; }
+interface Props { tournamentId: string; matchId: string; inline?: boolean; }
 
 const useMatch = (tournamentId: string, matchId: string) => {
   const [match, setMatch] = useState<Match | null>(null);
@@ -56,7 +56,7 @@ const ScoreButton = ({ finishType, playerId, onScore, disabled }: {
   );
 };
 
-export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
+export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Props) => {
   const { match, loading, error } = useMatch(tournamentId, matchId);
   const { user, isAdmin } = useAuthContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -163,19 +163,15 @@ export const JudgeMatchControl = ({ tournamentId, matchId }: Props) => {
   const MAX = 4;
 
   return (
-    <div className="page-wrapper">
-      <div className="page-content">
+    <div className={inline ? "space-y-4" : "page-wrapper"}>
+      <div className={inline ? "space-y-4" : "page-content"}>
 
-        {/* Header con botón volver */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="btn-ghost text-sm py-1.5 px-3"
-          >
-            ← Volver
-          </button>
-          <p className="font-gaming text-xs tracking-widest text-gray-500">{match.phase.replace(/_/g, " ")}</p>
-        </div>
+        {!inline && (
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.back()} className="btn-ghost text-sm py-1.5 px-3">← Volver</button>
+            <p className="font-gaming text-xs tracking-widest text-gray-500">{match.phase.replace(/_/g, " ")}</p>
+          </div>
+        )}
 
         {/* Modal ganador */}
         {showWinnerModal && winner && (
