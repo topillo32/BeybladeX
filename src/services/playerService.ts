@@ -132,3 +132,17 @@ export const approvePlayerEnrollment = async (playerId: string, tournamentId: st
     pendingTournamentIds: arrayRemove(tournamentId),
     tournamentIds: arrayUnion(tournamentId),
   });
+
+/**
+ * Links an unlinked player to a user account.
+ * Player name is the source of truth — updates the user's displayName to match.
+ */
+export const linkPlayerToUser = async (playerId: string, userId: string, playerName: string): Promise<void> => {
+  await Promise.all([
+    updateDoc(doc(db, "players", playerId), { userId }),
+    updateDoc(doc(db, "users", userId), {
+      displayName: playerName.trim(),
+      displayNameLower: playerName.trim().toLowerCase(),
+    }),
+  ]);
+};

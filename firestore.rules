@@ -5,16 +5,28 @@ service cloud.firestore {
     // ── Helpers ──────────────────────────────────────────────────────────────
     function isAuth()  { return request.auth != null; }
     function uid()     { return request.auth.uid; }
-    function role()    { return get(/databases/$(database)/documents/users/$(uid())).data.role; }
-    function isAdmin() { return isAuth() && role() == "admin"; }
-    function isStaff() { return isAuth() && (role() == "staff" || role() == "admin"); }
+
+    function role() {
+      let doc = get(/databases/$(database)/documents/users/$(uid()));
+      return isAuth() && doc.exists() ? doc.data.role : null;
+    }
+
+    function isAdmin() { return role() == "admin"; }
+    function isStaff() { return role() == "staff" || role() == "admin"; }
+    function isSelf(userId) { return isAuth() && uid() == userId; }
 
     // ── Users ─────────────────────────────────────────────────────────────────
-    // Lectura pública: registro comprueba nombre antes de crear cuenta (sin sesión).
     match /users/{userId} {
-      allow read:   if true;
-      allow create: if isAuth() && uid() == userId;
-      allow update: if uid() == userId || isAdmin();
+      // list público necesario para checkDisplayNameTaken en registro (sin sesión)
+      allow get:    if isAuth() || true;
+      allow list:   if isAuth();
+
+      allow create: if isSelf(userId);
+
+      // El usuario no puede cambiarse el role
+      allow update: if isAdmin()
+        || (isSelf(userId) && request.resource.data.role == resource.data.role);
+
       allow delete: if isAdmin();
     }
 
@@ -30,68 +42,71 @@ service cloud.firestore {
 
     // ── Parts ─────────────────────────────────────────────────────────────────
     match /parts/{partId} {
-      allow read:   if true;
-      allow write:  if isAdmin();
+      allow read:  if true;
+      allow write: if isAdmin();
     }
 
     // ── Combos ────────────────────────────────────────────────────────────────
     function ownsPlayer(playerId) {
-      return playerId == uid() ||
+      return isAuth() && (
+        playerId == uid() ||
         (exists(/databases/$(database)/documents/players/$(playerId)) &&
-         get(/databases/$(database)/documents/players/$(playerId)).data.userId == uid());
+         get(/databases/$(database)/documents/players/$(playerId)).data.userId == uid())
+      );
     }
 
     match /combos/{comboId} {
       allow read:   if isAuth();
-      allow create: if isAuth() && ownsPlayer(request.resource.data.playerId);
-      allow update: if isAuth() && (ownsPlayer(resource.data.playerId) || isStaff());
+      allow create: if ownsPlayer(request.resource.data.playerId);
+      allow update: if ownsPlayer(resource.data.playerId) || isStaff();
       allow delete: if isAdmin();
     }
 
-    // ── ComboHistory ──────────────────────────────────────────────────────────
+    // ── ComboHistory (append-only) ────────────────────────────────────────────
     match /comboHistory/{histId} {
-      allow read:   if isAuth();
-      allow create: if isAuth();
-      allow update: if false;
-      allow delete: if isAdmin();
+      allow read:          if isAuth();
+      allow create:        if isStaff();
+      allow update, delete: if false;
     }
 
     // ── Leagues ───────────────────────────────────────────────────────────────
     match /leagues/{leagueId} {
-      allow read:   if isAuth();
-      allow write:  if isAdmin();
+      allow read:  if isAuth();
+      allow write: if isAdmin();
     }
 
     // ── Tournaments ───────────────────────────────────────────────────────────
     match /tournaments/{tournamentId} {
-      allow read:   if true;  // public (used by /t page)
+      allow read:   if true;
       allow create: if isStaff();
       allow update: if isStaff();
       allow delete: if isAdmin();
 
-      // Groups
       match /groups/{groupId} {
-        allow read:   if true;
-        allow write:  if isStaff();
+        allow read:  if true;
+        allow write: if isStaff();
       }
 
-      // Matches
       match /matches/{matchId} {
         allow read:   if true;
-        allow write:  if isStaff();
+        allow create: if isStaff();
+        allow delete: if isAdmin();
 
-        // Auditoría de anotaciones (append-only; solo staff)
+        // Solo los campos permitidos pueden modificarse
+        allow update: if isStaff()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["playerAScore", "playerBScore", "isFinished", "winnerId", "history", "lockedBy", "lockedAt"]);
+
         match /scoreAudit/{auditId} {
-          allow create: if isStaff();
-          allow read:   if isStaff();
+          allow create:        if isStaff();
+          allow read:          if isStaff();
           allow update, delete: if false;
         }
       }
 
-      // Check-ins
       match /checkins/{playerId} {
-        allow read:   if isAuth();
-        allow write:  if isAdmin();
+        allow read:  if isAuth();
+        allow write: if isAdmin();
       }
     }
   }

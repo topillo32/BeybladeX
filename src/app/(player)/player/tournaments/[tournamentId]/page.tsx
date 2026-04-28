@@ -75,20 +75,40 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
         <div className="animate-fade-in" key={tab}>
           {tab === "overview" && (
             <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: t("players"),    value: players.length,  icon: "👤" },
-                { label: t("groups"),     value: groups.length,   icon: "👥" },
-                { label: t("matches"),    value: matches.length,  icon: "⚔️" },
-                { label: t("qualifiers"), value: tournament.qualifiersCount || t("tbd"), icon: "🏆" },
-              ].map((s) => (
-                <div key={s.label} className="card card-cyan p-4 text-center space-y-1">
-                  <p className="text-2xl">{s.icon}</p>
-                  <p className="font-gaming text-3xl font-black text-cyan-400">{s.value}</p>
-                  <p className="text-gray-400 text-xs">{s.label}</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: t("players"),    value: players.length,  icon: "👤" },
+                  { label: t("groups"),     value: groups.length,   icon: "👥" },
+                  { label: t("matches"),    value: matches.length,  icon: "⚔️" },
+                  { label: t("qualifiers"), value: tournament.qualifiersCount || t("tbd"), icon: "🏆" },
+                ].map((s) => (
+                  <div key={s.label} className="card card-cyan p-4 text-center space-y-1">
+                    <p className="text-2xl">{s.icon}</p>
+                    <p className="font-gaming text-3xl font-black text-cyan-400">{s.value}</p>
+                    <p className="text-gray-400 text-xs">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {players.length > 0 && (
+                <div className="card overflow-hidden">
+                  <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+                    <p className="section-title mb-0">👤 {t("players")}</p>
+                    <span className="font-gaming text-xs text-cyan-400">{players.length} / {tournament.maxPlayers}</span>
+                  </div>
+                  <ul className="divide-y divide-white/5">
+                    {players.map((p, i) => (
+                      <li key={p.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/3 transition-colors">
+                        <span className="font-gaming text-xs text-white/30 w-5 text-right shrink-0">{i + 1}</span>
+                        <span className="text-sm text-white font-medium">{p.name}</span>
+                        {p.id === myPlayer?.id && (
+                          <span className="text-xs text-cyan-400 font-gaming border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 rounded-full ml-auto">Tú</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              ))}
-            </div>
+              )}
             </div>
           )}
 
@@ -100,11 +120,25 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
                   <p className="text-white font-semibold">{t("noGroupsYet")}</p>
                 </div>
               ) : groups.map((g) => {
-                const gPlayers = players.filter((p) => g.playerIds.includes(p.id));
-                const standings = computeGroupStandings(matches, gPlayers, g.id);
+                const gPlayers = players.filter((p) => g.playerIds.includes(p.id) && !p.id.startsWith("bye-"));
+                const standings = computeGroupStandings(matches, players.filter((p) => g.playerIds.includes(p.id)), g.id);
                 return (
                   <div key={g.id} className="space-y-3">
-                    <p className="font-gaming text-sm font-bold text-cyan-300 tracking-widest">{g.name}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="font-gaming text-sm font-bold text-cyan-300 tracking-widest">{g.name}</p>
+                      {g.judgeName && (
+                        <span className="text-xs text-purple-300 font-gaming border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 rounded-full">⚖️ {g.judgeName}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-1">
+                      {gPlayers.map((p) => (
+                        <span key={p.id} className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
+                          p.id === myPlayer?.id
+                            ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-300"
+                            : "bg-white/5 border-white/10 text-white/70"
+                        }`}>{p.name}</span>
+                      ))}
+                    </div>
                     <StandingsTable standings={standings} highlightTop={2} highlightPlayerId={myPlayer?.id} />
                   </div>
                 );
