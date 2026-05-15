@@ -16,11 +16,15 @@ export function useLockHeartbeat(
 ) {
   useEffect(() => {
     if (!active || !tournamentId || !matchId || !uid || isAdmin) return;
-    const tick = () => {
-      void renewLock(tournamentId, matchId, uid);
-    };
+    const tick = () => { void renewLock(tournamentId, matchId, uid); };
     tick();
     const id = setInterval(tick, LOCK_RENEW_INTERVAL_MS);
-    return () => clearInterval(id);
+    // Renueva inmediatamente cuando la pantalla vuelve a estar activa
+    const onVisible = () => { if (document.visibilityState === "visible") tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [active, tournamentId, matchId, uid, isAdmin]);
 }

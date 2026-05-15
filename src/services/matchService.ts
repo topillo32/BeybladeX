@@ -181,7 +181,7 @@ export const advanceKnockoutRound = async (
 const WINNING_SCORE = 4;
 
 /** Tiempo máximo sin renovar el bloqueo antes de que expire (renovar con `renewLock` mientras el modal está abierto). */
-export const LOCK_TTL_MS = 120_000;
+export const LOCK_TTL_MS = 300_000; // 5 minutos
 
 /** Intervalo recomendado para llamar a `renewLock` desde la UI (ms). */
 export const LOCK_RENEW_INTERVAL_MS = 20_000;

@@ -1,17 +1,27 @@
 "use client";
 export const dynamic = "force-dynamic";
+import { useState } from "react";
 import Link from "next/link";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useTournaments, usePlayers } from "@/hooks/useTournament";
 import { StatusBadge } from "@/components/ui/Badges";
 import { Spinner } from "@/components/ui/Spinner";
 import { useLang } from "@/lib/LangContext";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "@/services/firebase";
 
 export default function DashboardPage() {
-  const { user } = useAuthContext();
+  const { user, isAdmin, maintenance } = useAuthContext();
   const { t } = useLang();
   const { tournaments, loading: tournamentsLoading } = useTournaments();
   const { players, loading: playersLoading } = usePlayers();
+  const [toggling, setToggling] = useState(false);
+
+  const toggleMaintenance = async () => {
+    setToggling(true);
+    await setDoc(doc(db, "config", "app"), { maintenanceMode: !maintenance }, { merge: true });
+    setToggling(false);
+  };
 
   const active = tournaments.filter((t) => t.status !== "FINISHED" && t.status !== "DRAFT");
   const finished = tournaments.filter((t) => t.status === "FINISHED");
@@ -26,6 +36,35 @@ export default function DashboardPage() {
           <h1 className="font-gaming text-3xl font-black tracking-widest text-white mt-0.5">{user?.displayName}</h1>
           <div className="divider-cyan mt-3" />
         </div>
+
+        {/* Modo mantenimiento — solo admins */}
+        {isAdmin && (
+          <div className={`card p-4 flex items-center justify-between gap-4 border ${
+            maintenance ? "border-amber-500/40 bg-amber-500/5" : "border-white/7"
+          }`}>
+            <div>
+              <p className="font-gaming text-sm text-white tracking-wider">
+                {maintenance ? "⚙️ Modo mantenimiento activo" : "⚙️ Modo mantenimiento"}
+              </p>
+              <p className="text-white/40 text-xs mt-0.5">
+                {maintenance
+                  ? "Solo staff y admins pueden acceder. Los players son deslogueados automáticamente."
+                  : "Al activarlo, los players serán deslogueados y no podrán acceder."}
+              </p>
+            </div>
+            <button
+              onClick={toggleMaintenance}
+              disabled={toggling}
+              className={`shrink-0 font-gaming text-xs px-4 py-2 rounded-lg border transition-all disabled:opacity-50 ${
+                maintenance
+                  ? "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
+                  : "bg-white/5 border-white/15 text-white/60 hover:bg-white/10"
+              }`}
+            >
+              {toggling ? "..." : maintenance ? "Desactivar" : "Activar"}
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[

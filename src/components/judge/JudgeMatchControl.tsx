@@ -9,6 +9,7 @@ import { useLockHeartbeat } from "@/hooks/useLockHeartbeat";
 import { useAuthContext } from "@/lib/AuthContext";
 import { Match, FINISH_TYPES, Player, FinishType } from "@/types";
 import { ComboVerifier } from "./ComboVerifier";
+import { ErrorToast } from "@/components/ui/ErrorToast";
 
 interface Props { tournamentId: string; matchId: string; inline?: boolean; }
 
@@ -21,7 +22,7 @@ const useMatch = (tournamentId: string, matchId: string) => {
     if (!tournamentId || !matchId) { setLoading(false); return; }
     const unsub = onSnapshot(
       doc(db, "tournaments", tournamentId, "matches", matchId),
-      (d) => { if (d.exists()) setMatch({ id: d.id, ...d.data() } as Match); else setError(new Error("Match not found.")); setLoading(false); },
+      (d) => { if (d.exists()) setMatch({ id: d.id, ...d.data() } as Match); else setError(new Error("Partida no encontrada.")); setLoading(false); },
       (err) => { setError(err); setLoading(false); }
     );
     return () => unsub();
@@ -66,40 +67,31 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
   const router = useRouter();
   const uid = user?.uid;
 
-  useLockHeartbeat(!!match && !match.isFinished && !lockErr, tournamentId, matchId, uid, !!isAdmin);
+  useLockHeartbeat(!!match && !match.isFinished, tournamentId, matchId, uid, !!isAdmin);
 
   useEffect(() => {
     if (match?.isFinished) setShowWinnerModal(true);
   }, [match?.isFinished]);
 
+  // Toma el lock al montar — solo bloquea la UI si hay otro juez activo
   useEffect(() => {
-    if (!uid || !match) return;
-    if (match.isFinished) {
-      setLockErr(null);
-      return;
-    }
+    if (!uid || !matchId || !tournamentId) return;
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         await lockMatch(tournamentId, matchId, uid, !!isAdmin);
         if (!cancelled) setLockErr(null);
       } catch (e: any) {
-        if (!cancelled) {
-          setLockErr(
-            e.message === "LOCKED"
-              ? "Otro juez tiene esta partida abierta."
-              : e.message === "NOT_JUDGE"
-                ? "No eres el juez asignado a este grupo."
-                : "No se pudo bloquear la partida."
-          );
-        }
+        if (!cancelled && e.message === "LOCKED")
+          setLockErr("Esta partida está siendo anotada por otro juez en este momento.");
+        // Cualquier otro error se ignora — el servidor rechazará el punto si no corresponde
       }
     })();
     return () => {
       cancelled = true;
       void unlockMatch(tournamentId, matchId, uid);
     };
-  }, [uid, tournamentId, matchId, match]);
+  }, [uid, tournamentId, matchId]);
 
   const handleScore = async (playerId: string, finishType: FinishType) => {
     if (isSubmitting || match?.isFinished || !uid) return;
@@ -109,10 +101,10 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
       await updateMatchScore(tournamentId, matchId, playerId, finishType, uid, !!isAdmin, createScoreEventId());
     } catch (e: any) {
       setActionError(
-        e.message === "NOT_JUDGE" ? "No eres el juez asignado."
-          : e.message === "PHASE_LOCKED" ? "Esta fase ya no admite cambios."
-          : e.message === "LOCK_EXPIRED" ? "El bloqueo expiró. Recarga la página."
-          : "No se pudo anotar."
+        e.message === "NOT_JUDGE"     ? "Tu usuario no está asignado como juez de este grupo."
+        : e.message === "PHASE_LOCKED" ? "Esta fase ya cerró y no se pueden registrar más puntos."
+        : e.message === "LOCK_EXPIRED" ? "El control expiró. Cerrá y volvé a abrir la partida."
+        : `No se pudo registrar el punto. Detalle: ${e.message}`
       );
     } finally {
       setIsSubmitting(false);
@@ -125,16 +117,16 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
     setActionError(null);
     try {
       await undoLastScore(tournamentId, matchId, uid, !!isAdmin);
-    } catch {
-      setActionError("No se pudo deshacer.");
+    } catch (e: any) {
+      setActionError(`No se pudo deshacer el último punto. Detalle: ${e.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (loading) return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
-      <div className="relative w-12 h-12">
+    <div className="flex items-center justify-center py-10">
+      <div className="relative w-10 h-10">
         <div className="absolute inset-0 rounded-full border-2 border-cyan-400/40 animate-spin-slow" />
         <div className="absolute inset-2 rounded-full border border-purple-400/40 animate-spin-reverse" />
       </div>
@@ -142,17 +134,8 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
   );
 
   if (error || !match) return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center text-red-400 font-gaming text-sm">
-      {error?.message ?? "No match data."}
-    </div>
-  );
-
-  if (lockErr) return (
-    <div className="min-h-[calc(100vh-64px)] flex flex-col items-center justify-center gap-4 text-amber-400 font-gaming text-sm text-center px-6">
-      <p>{lockErr}</p>
-      <button type="button" onClick={() => router.back()} className="btn-ghost text-xs py-2 px-4">
-        ← Volver
-      </button>
+    <div className="flex items-center justify-center py-10 text-white/40 font-gaming text-sm">
+      {error?.message ?? "No se encontró la partida."}
     </div>
   );
 
@@ -173,6 +156,11 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
           </div>
         )}
 
+        {/* Aviso si otro juez tiene el lock — no bloquea la UI */}
+        {lockErr && (
+          <ErrorToast error={lockErr} onClose={() => setLockErr(null)} />
+        )}
+
         {/* Modal ganador */}
         {showWinnerModal && winner && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
@@ -182,16 +170,10 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
               <p className="font-gaming text-2xl font-black text-white">{winner.name}</p>
               <p className="text-gray-400 text-sm">{match.playerAScore} — {match.playerBScore}</p>
               <div className="flex flex-col gap-2 pt-2">
-                <button
-                  onClick={() => router.push(`/tournaments/${tournamentId}`)}
-                  className="btn-primary font-gaming text-xs tracking-wider py-3"
-                >
+                <button onClick={() => router.push(`/tournaments/${tournamentId}`)} className="btn-primary font-gaming text-xs tracking-wider py-3">
                   Volver al torneo
                 </button>
-                <button
-                  onClick={() => setShowWinnerModal(false)}
-                  className="btn-ghost text-xs py-2"
-                >
+                <button onClick={() => setShowWinnerModal(false)} className="btn-ghost text-xs py-2">
                   Ver detalles del match
                 </button>
               </div>
@@ -199,27 +181,18 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
           </div>
         )}
 
-        {actionError && (
-          <div className="text-red-400 text-xs text-center font-gaming bg-red-500/10 border border-red-500/30 rounded-lg py-2 px-3">
-            ⚠ {actionError}
-          </div>
-        )}
+        {actionError && <ErrorToast error={actionError} onClose={() => setActionError(null)} />}
 
-        {/* Verificación de combos */}
         <ComboVerifier
           tournamentId={tournamentId}
-          playerAId={match.playerA.id}
-          playerAName={match.playerA.name}
-          playerBId={match.playerB.id}
-          playerBName={match.playerB.name}
-          defaultExpanded
-          compact
+          playerAId={match.playerA.id} playerAName={match.playerA.name}
+          playerBId={match.playerB.id} playerBName={match.playerB.name}
+          defaultExpanded compact
         />
 
         {/* Scoreboard */}
         <div className="card card-cyan p-4 sm:p-6">
           <p className="section-title mb-3 text-center sm:mb-4">Scoreboard</p>
-
           <div className="sm:hidden space-y-2">
             <div className="flex items-baseline justify-center gap-3 font-gaming font-black">
               <span className="text-4xl tabular-nums text-cyan-400">{match.playerAScore}</span>
@@ -231,7 +204,6 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
               <p className="break-words text-amber-300">{match.playerB.name}</p>
             </div>
           </div>
-
           <div className="hidden items-center justify-between gap-4 sm:flex">
             <p className="flex-1 text-center text-lg font-semibold text-cyan-300 truncate">{match.playerA.name}</p>
             <div className="flex shrink-0 items-center gap-3 font-gaming text-5xl font-black">
@@ -241,25 +213,18 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
             </div>
             <p className="flex-1 text-center text-lg font-semibold text-amber-300 truncate">{match.playerB.name}</p>
           </div>
-
-          {/* Progress bars */}
           <div className="mt-5 space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-400 w-16 text-right font-gaming">{match.playerAScore}/{MAX}</span>
-              <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full transition-all duration-500" style={{ width: `${Math.min((match.playerAScore / MAX) * 100, 100)}%` }} />
+            {[{ score: match.playerAScore, color: "from-cyan-600 to-cyan-400" }, { score: match.playerBScore, color: "from-amber-600 to-amber-400" }].map((p, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 w-16 text-right font-gaming">{p.score}/{MAX}</span>
+                <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div className={`h-full bg-gradient-to-r ${p.color} rounded-full transition-all duration-500`} style={{ width: `${Math.min((p.score / MAX) * 100, 100)}%` }} />
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-400 w-16 text-right font-gaming">{match.playerBScore}/{MAX}</span>
-              <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-500" style={{ width: `${Math.min((match.playerBScore / MAX) * 100, 100)}%` }} />
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Winner */}
         {winner && (
           <div className="card p-6 text-center border-yellow-500/25" style={{ boxShadow: "0 0 24px rgba(234,179,8,0.1)" }}>
             <p className="font-gaming text-xs tracking-widest text-yellow-500 mb-2">MATCH OVER</p>
@@ -267,7 +232,6 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
           </div>
         )}
 
-        {/* Controls */}
         {!match.isFinished && (
           <div className="grid grid-cols-2 gap-2 sm:gap-4">
             {([match.playerA, match.playerB] as Player[]).map((player, idx) => (
@@ -283,16 +247,11 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
           </div>
         )}
 
-        {/* History */}
         {match.history?.length > 0 && (
           <div className="card overflow-hidden">
             <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
-              <p className="section-title mb-0">History</p>
-              <button
-                onClick={handleUndo}
-                disabled={isSubmitting}
-                className="btn-danger text-xs py-1 px-3"
-              >
+              <p className="section-title mb-0">Historial</p>
+              <button onClick={handleUndo} disabled={isSubmitting} className="btn-danger text-xs py-1 px-3">
                 ↩ Deshacer último
               </button>
             </div>

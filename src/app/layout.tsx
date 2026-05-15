@@ -4,6 +4,7 @@ import { Orbitron } from "next/font/google";
 import { AuthProvider } from "@/lib/AuthContext";
 import { LangProvider } from "@/lib/LangContext";
 import { OfflineBanner } from "@/components/layout/OfflineBanner";
+import { MaintenanceGate } from "@/components/layout/MaintenanceGate";
 import "./globals.css";
 
 const orbitron = Orbitron({ subsets: ["latin"], variable: "--font-orbitron" });
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${orbitron.variable} bg-[#0f766e] bg-grid text-white`}>
         <LangProvider>
           <AuthProvider>
-            {children}
+            <MaintenanceGate>
+              {children}
+            </MaintenanceGate>
             <OfflineBanner />
           </AuthProvider>
         </LangProvider>

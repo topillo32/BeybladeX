@@ -23,6 +23,7 @@ import { OPEN_REGISTRATION_STATUSES as OPEN_REG } from "@/types";
 import { markCheckIn, removeCheckIn, subscribeCheckIns } from "@/services/checkInService";
 import { autoAssignJudges } from "@/services/judgeService";
 import type { CheckIn } from "@/services/checkInService";
+import { ErrorToast } from "@/components/ui/ErrorToast";
 
 import { useEffect } from "react";
 
@@ -178,9 +179,8 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   return (
     <div className="page-wrapper">
       {error && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-900/90 border border-red-500/50 text-red-300 font-gaming text-xs px-5 py-3 rounded-xl shadow-xl flex items-center gap-3">
-          <span>⚠ {error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-white leading-none">✕</button>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
+          <ErrorToast error={error} onClose={() => setError(null)} />
         </div>
       )}
 

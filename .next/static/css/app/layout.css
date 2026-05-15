@@ -1315,6 +1315,9 @@ video {
 .bg-amber-500\/20 {
   background-color: rgb(245 158 11 / 0.2);
 }
+.bg-amber-500\/30 {
+  background-color: rgb(245 158 11 / 0.3);
+}
 .bg-amber-950\/95 {
   background-color: rgb(69 26 3 / 0.95);
 }
@@ -1512,9 +1515,6 @@ video {
 .bg-yellow-900 {
   --tw-bg-opacity: 1;
   background-color: rgb(113 63 18 / var(--tw-bg-opacity, 1));
-}
-.bg-amber-500\/30 {
-  background-color: rgb(245 158 11 / 0.3);
 }
 .bg-gradient-to-br {
   background-image: linear-gradient(to bottom right, var(--tw-gradient-stops));
@@ -1899,9 +1899,6 @@ video {
 .text-green-400 {
   --tw-text-opacity: 1;
   color: rgb(74 222 128 / var(--tw-text-opacity, 1));
-}
-.text-green-400\/60 {
-  color: rgb(74 222 128 / 0.6);
 }
 .text-green-600 {
   --tw-text-opacity: 1;

@@ -151,7 +151,7 @@ export default function TournamentScoringPage({ params }: { params: { tournament
 
                       {isMatchOpen && (
                         <div className="border-t border-white/5 bg-black/20 px-2 py-4">
-                          <JudgeMatchControl tournamentId={tournamentId} matchId={m.id} inline />
+                          <JudgeMatchControl key={m.id} tournamentId={tournamentId} matchId={m.id} inline />
                         </div>
                       )}
                     </div>
