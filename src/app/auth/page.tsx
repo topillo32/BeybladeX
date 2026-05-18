@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { loginUser, registerUser, getUserData, checkDisplayNameTaken, resetPassword } from "@/services/authService";
 import { useLang } from "@/lib/LangContext";
+import { useAuthContext } from "@/lib/AuthContext";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -17,6 +18,7 @@ const validatePassword = (pw: string): string | null => {
 
 export default function AuthPage() {
   const { t, lang, setLang } = useLang();
+  const { maintenance } = useAuthContext();
   const [mode, setMode] = useState<"login" | "register" | "reset">("login");
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const redirectTo = searchParams?.get("redirect") ?? null;
@@ -111,6 +113,14 @@ export default function AuthPage() {
           </h1>
           <p className="text-gray-400 text-sm">{t("tournamentManager")}</p>
         </div>
+
+        {/* Aviso modo mantenimiento */}
+        {maintenance && (
+          <div className="card border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-center space-y-1">
+            <p className="text-amber-300 font-gaming text-xs tracking-wider">Acceso restringido</p>
+            <p className="text-white/50 text-xs">Para consultar resultados o inscribirte, contactá al staff del evento.</p>
+          </div>
+        )}
 
         {/* Card */}
         <div className="card card-cyan p-6 space-y-4">
