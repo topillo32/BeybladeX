@@ -10,15 +10,19 @@ import "./globals.css";
 const orbitron = Orbitron({ subsets: ["latin"], variable: "--font-orbitron" });
 
 export const metadata: Metadata = {
-  title: "Beyblade X PAC",
-  description: "Gestor de Torneos Beyblade X PAC",
-  icons: { icon: "/icons/logo.ico" },
+  title: "BeyMatch",
+  description: "Gestor de Torneos Pro",
+  icons: {
+    icon: "/icons/logo.png",
+    shortcut: "/icons/logo.png",
+    apple: "/icons/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className={`${orbitron.variable} bg-[#0f766e] bg-grid text-white`}>
+      <body className={`${orbitron.variable} bg-slate-950 bg-grid text-white`}>
         <LangProvider>
           <AuthProvider>
             <MaintenanceGate>

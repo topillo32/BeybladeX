@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useTournament, useGroups, useMatches, usePlayers, usePendingPlayers, useUnenrolledPlayers } from "@/hooks/useTournament";
 import { useAuthContext } from "@/lib/AuthContext";
@@ -56,10 +56,34 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const [selectedQualifiers, setSelectedQualifiers] = useState<number>(0);
   const [matchGroupFilter, setMatchGroupFilter] = useState<string>("all");
 
+  const userCommunityIds = useMemo(() => {
+    if (!user?.communityId) return [];
+    return Array.isArray(user.communityId) ? user.communityId : [user.communityId];
+  }, [user?.communityId]);
+
+  const isTournamentCommunityMember = tournament?.communityId
+    ? userCommunityIds.includes(tournament.communityId)
+    : false;
+
+  const canAdvancePhase = isAdmin || (isStaff && isTournamentCommunityMember);
+  const canManageCheckIn = isAdmin || (isStaff && isTournamentCommunityMember);
+  const canAssignJudge = isAdmin || (isStaff && isTournamentCommunityMember);
+
+  const isUserInTournamentCommunity = (candidate: AppUser) => {
+    if (!tournament?.communityId || !candidate.communityId) return false;
+    const candidateCommunityIds = Array.isArray(candidate.communityId)
+      ? candidate.communityId
+      : [candidate.communityId];
+    return candidateCommunityIds.includes(tournament.communityId);
+  };
+
   useEffect(() => {
-    if (!isAdmin) return;
-    getAllUsers().then((all) => setStaffUsers(all.filter((u) => u.role === "staff" || u.role === "admin")));
-  }, [isAdmin]);
+    if (!canAssignJudge) return;
+    getAllUsers().then((all) => setStaffUsers(all.filter((u) => {
+      if (!["staff", "admin", "leader"].includes(u.role)) return false;
+      return isUserInTournamentCommunity(u);
+    })));
+  }, [canAssignJudge, tournament?.communityId]);
 
   useEffect(() => {
     if (!tournamentId) return;
@@ -99,7 +123,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           await generateGroupMatches(tournamentId, g, gPlayers);
         }
         // Asignar jueces disponibles automáticamente
-        await autoAssignJudges(tournamentId, freshGroups, paidPlayers);
+        await autoAssignJudges(tournamentId, freshGroups, paidPlayers, tournament.communityId);
         const groupsAfter = await getGroups(tournamentId);
         const withoutJudge = groupsAfter.filter((g) => !g.judgeId).length;
         if (withoutJudge > 0) {
@@ -172,7 +196,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
     { key: "matches",   label: t("matches"),   icon: "⚔️" },
     { key: "standings", label: t("standings"), icon: "📈" },
     { key: "bracket",   label: t("bracket"),   icon: "🏆" },
-    ...(isAdmin ? [{ key: "checkin" as Tab, label: "Check-In", icon: "✅" }] : []),
+    ...(canManageCheckIn ? [{ key: "checkin" as Tab, label: "Check-In", icon: "✅" }] : []),
     ...(isAdmin ? [{ key: "danger" as Tab, label: "Admin", icon: "⚠️" }] : []),
   ];
 
@@ -336,7 +360,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
             </div>
           )}
 
-          {isAdmin && NEXT_STATUS[tournament.status] && (
+          {canAdvancePhase && NEXT_STATUS[tournament.status] && (
             <div className="space-y-2">
               {tournament.status === "REGISTRATION" && players.length > 0 && (
                 <div className="card p-3 flex items-center justify-between gap-2">
@@ -491,7 +515,9 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                   const canDelete = isAdmin && realPlayerCount === 0;
                   const canFill = isAdmin && slots > 0 && byeCount < 3;
                   const eligibleJudges = staffUsers.filter((u) => {
-                    if (u.availableAsJudge !== true) return false;
+                    if (u.role !== "staff" && u.role !== "admin" && u.role !== "leader") return false;
+                    if (u.role !== "leader" && u.availableAsJudge !== true) return false;
+                    if (!isUserInTournamentCommunity(u)) return false;
                     const asPlayer = players.find((p) => p.userId === u.uid);
                     return !asPlayer || !g.playerIds.includes(asPlayer.id);
                   });
@@ -501,7 +527,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <p className="font-gaming text-sm font-bold text-cyan-300 tracking-widest">{g.name}</p>
                         <div className="flex items-center gap-2 flex-wrap">
-                          {isAdmin && (
+                          {canAssignJudge && (
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500 font-gaming">⚖️ {t("judge")}:</span>
                               <select
@@ -663,7 +689,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
               />
             )}
 
-            {tab === "checkin" && isAdmin && (
+            {tab === "checkin" && canManageCheckIn && (
               <div className="card overflow-hidden">
                 <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
                   <p className="section-title mb-0">✅ Check-In — Pago de inscripción</p>

@@ -28,6 +28,7 @@ export const useAuth = () => {
             email: firebaseUser.email ?? "",
             displayName: firebaseUser.displayName ?? firebaseUser.email ?? "",
             role: "player",
+            communityId: null,
             createdAt: null as any,
           };
           await setDoc(doc(db, "users", firebaseUser.uid), {
@@ -63,7 +64,7 @@ export const useAuth = () => {
     loading,
     maintenance,
     isAdmin: user?.role === "admin",
-    isStaff: user?.role === "staff" || user?.role === "admin",
+    isStaff: user?.role === "staff" || user?.role === "admin" || user?.role === "leader",
     isPlayer: user?.role === "player",
   };
 };

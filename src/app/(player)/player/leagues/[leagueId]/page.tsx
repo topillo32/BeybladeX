@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useTournaments } from "@/hooks/useTournament";
+import { useTournaments, useLeagues } from "@/hooks/useTournament";
 import { computeLeagueStandings } from "@/services/leagueService";
 import { StatusBadge } from "@/components/ui/Badges";
 import { Spinner } from "@/components/ui/Spinner";
@@ -12,6 +12,8 @@ import type { LeagueStandingEntry } from "@/types";
 export default function PlayerLeagueDetailPage({ params }: { params: { leagueId: string } }) {
   const { leagueId } = params;
   const { tournaments } = useTournaments();
+  const { leagues } = useLeagues();
+  const league = leagues.find((l) => l.id === leagueId);
   const { t } = useLang();
   const { user } = useAuthContext();
   const [standings, setStandings] = useState<LeagueStandingEntry[]>([]);
@@ -28,7 +30,9 @@ export default function PlayerLeagueDetailPage({ params }: { params: { leagueId:
       <div className="w-full max-w-3xl space-y-6">
         <div>
           <Link href="/player/leagues" className="text-gray-500 hover:text-cyan-400 text-sm transition-colors">← {t("myLeagues")}</Link>
-          <h1 className="font-gaming text-2xl font-black tracking-widest text-white mt-2">🏅 {t("leagueStandings")}</h1>
+          <h1 className="font-gaming text-2xl font-black tracking-widest text-white mt-2">
+            🏅 {league?.name ?? t("leagueStandings")}
+          </h1>
           <div className="divider-cyan mt-2" />
         </div>
 

@@ -6,26 +6,68 @@ service cloud.firestore {
     function isAuth()  { return request.auth != null; }
     function uid()     { return request.auth.uid; }
 
+    function userDoc() {
+      return isAuth() ? get(/databases/$(database)/documents/users/$(uid())) : null;
+    }
+
     function role() {
-      return isAuth() ? get(/databases/$(database)/documents/users/$(uid())).data.role : null;
+      return isAuth() ? userDoc().data.role : null;
+    }
+
+    function communityId() {
+      return isAuth() ? userDoc().data.communityId : null;
+    }
+
+    function hasCommunity(docCommunityId) {
+      return isAuth() && (
+        communityId() == docCommunityId ||
+        (type(communityId()) == list && docCommunityId in communityId())
+      );
     }
 
     function isAdmin() { return role() == "admin"; }
-    function isStaff() { return role() == "staff" || role() == "admin"; }
+    function isLeader() { return role() == "leader"; }
+    function isStaff() { return role() == "staff" || role() == "leader" || role() == "admin"; }
     function isSelf(userId) { return isAuth() && uid() == userId; }
+
+    function isCommunityMember(docCommunityId) {
+      return hasCommunity(docCommunityId);
+    }
+
+    function tournamentCommunityId(tournamentId) {
+      return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.communityId;
+    }
 
     // ── Users ─────────────────────────────────────────────────────────────────
     match /users/{userId} {
       // list público necesario para checkDisplayNameTaken en registro (sin sesión)
-      allow get:    if isAuth() || true;
-      allow list:   if isAuth();
+      allow get:    if true;
+      allow list:   if true;
 
       allow create: if isSelf(userId);
 
-      // El usuario no puede cambiarse el role
       allow update: if isAdmin()
-        || (isSelf(userId) && request.resource.data.role == resource.data.role);
+        || (isSelf(userId)
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.communityId == resource.data.communityId)
+        || (isLeader()
+            && (resource.data.role == "player" || resource.data.role == "staff")
+            && request.resource.data.role == "staff"
+            && request.resource.data.displayName == resource.data.displayName
+            && request.resource.data.email == resource.data.email
+            && request.resource.data.uid == resource.data.uid
+            && request.resource.data.createdAt == resource.data.createdAt
+            && (request.resource.data.communityId == communityId()
+                || (type(request.resource.data.communityId) == list && communityId() in request.resource.data.communityId)));
 
+      allow delete: if isAdmin();
+    }
+
+    // ── Communities ────────────────────────────────────────────────────────────
+    match /communities/{communityId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isLeader() && hasCommunity(communityId));
       allow delete: if isAdmin();
     }
 
@@ -76,38 +118,54 @@ service cloud.firestore {
 
     // ── Leagues ───────────────────────────────────────────────────────────────
     match /leagues/{leagueId} {
-      allow read:  if isAuth();
-      allow write: if isAdmin();
+      allow read: if true;
+      allow create: if isAdmin() || (isLeader() && hasCommunity(request.resource.data.communityId));
+      allow update: if isAdmin() || (isLeader() && isCommunityMember(resource.data.communityId));
+      allow delete: if isAdmin();
     }
 
     // ── Tournaments ───────────────────────────────────────────────────────────
     match /tournaments/{tournamentId} {
       allow read:   if true;
-      allow create: if isStaff();
-      allow update: if isStaff();
+      allow create: if isAdmin()
+        || (isLeader() && hasCommunity(request.resource.data.communityId))
+        || (role() == "staff" && hasCommunity(request.resource.data.communityId));
+      allow update: if isAdmin()
+        || (isLeader() && isCommunityMember(resource.data.communityId))
+        || (role() == "staff" && isCommunityMember(resource.data.communityId));
       allow delete: if isAdmin();
 
       match /groups/{groupId} {
         allow read:  if true;
-        allow write: if isStaff();
+        allow write: if isAdmin()
+          || (isLeader() && hasCommunity(tournamentCommunityId(tournamentId)))
+          || (role() == "staff" && hasCommunity(tournamentCommunityId(tournamentId)));
       }
 
       match /matches/{matchId} {
         allow read:   if true;
-        allow create: if isStaff();
+        allow create: if isAdmin()
+          || (isLeader() && hasCommunity(tournamentCommunityId(tournamentId)))
+          || (role() == "staff" && hasCommunity(tournamentCommunityId(tournamentId)));
         allow delete: if isAdmin();
-        allow update: if isStaff();
+        allow update: if isAdmin()
+          || (isLeader() && hasCommunity(tournamentCommunityId(tournamentId)))
+          || (role() == "staff" && hasCommunity(tournamentCommunityId(tournamentId)));
 
         match /scoreAudit/{auditId} {
-          allow create:        if isStaff();
-          allow read:          if isStaff();
+          allow create:        if isAdmin()
+            || (isLeader() && hasCommunity(tournamentCommunityId(tournamentId)))
+            || (role() == "staff" && hasCommunity(tournamentCommunityId(tournamentId)));
+          allow read:          if isAuth() && hasCommunity(tournamentCommunityId(tournamentId));
           allow update, delete: if false;
         }
       }
 
       match /checkins/{playerId} {
         allow read:  if isAuth();
-        allow write: if isAdmin();
+        allow write: if isAdmin()
+          || (isLeader() && hasCommunity(tournamentCommunityId(tournamentId)))
+          || (role() == "staff" && hasCommunity(tournamentCommunityId(tournamentId)));
       }
     }
   }

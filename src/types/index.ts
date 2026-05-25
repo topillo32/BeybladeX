@@ -1,14 +1,24 @@
 import { Timestamp } from "firebase/firestore";
 
 // ─── Auth & Roles ────────────────────────────────────────────────────────────
-export type UserRole = "admin" | "staff" | "player";
+export type UserRole = "admin" | "leader" | "staff" | "player";
 
 export interface AppUser {
   uid: string;
   email: string;
   displayName: string;
   role: UserRole;
+  communityId?: string | string[] | null;
   availableAsJudge?: boolean;
+  createdAt: Timestamp;
+}
+
+export interface Community {
+  id: string;
+  name: string;
+  description?: string;
+  logoUrl?: string;
+  createdBy: string;
   createdAt: Timestamp;
 }
 
@@ -17,6 +27,7 @@ export interface League {
   id: string;
   name: string;
   description?: string;
+  communityId?: string | null;
   createdBy: string;
   createdAt: Timestamp;
 }
@@ -50,6 +61,7 @@ export interface Tournament {
   status: TournamentStatus;
   eventType: EventType;
   leagueId?: string;
+  communityId?: string | null;
   maxPlayers: number;
   playersPerGroup: number;
   qualifiersCount: number;

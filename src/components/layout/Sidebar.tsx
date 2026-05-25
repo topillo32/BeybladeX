@@ -21,14 +21,18 @@ export const Sidebar = () => {
     { href: "/dashboard",   label: t("dashboard"),   icon: "📊" },
     { href: "/tournaments", label: t("tournaments"), icon: "🏆" },
     { href: "/leagues",     label: t("leagues"),     icon: "🏅" },
+    { href: "/mi-staff",    label: "Mi Staff",        icon: "👥" },
+    { href: "/communities", label: "Comunidades",    icon: "🏘️" },
     { href: "/players",     label: t("players"),     icon: "👤" },
     { href: "/parts",       label: "Piezas",         icon: "⚙️" },
     { href: "/users",       label: t("users"),       icon: "🛡️" },
+    { href: "/setup",       label: "Setup",          icon: "⚙️" },
   ];
   const NAV_STAFF = [
     { href: "/dashboard",   label: t("dashboard"),   icon: "📊" },
     { href: "/tournaments", label: t("tournaments"), icon: "🏆" },
     { href: "/leagues",     label: t("leagues"),     icon: "🏅" },
+    { href: "/mi-staff",    label: "Mi Staff",        icon: "👥" },
     { href: "/players",     label: t("players"),     icon: "👤" },
     { href: "/parts",       label: "Piezas",         icon: "⚙️" },
   ];
@@ -38,7 +42,8 @@ export const Sidebar = () => {
     { href: "/player/combos",      label: "Mis Combos",              icon: "🌀" },
   ];
 
-  const nav = isAdmin ? NAV_ADMIN : user?.role === "staff" ? NAV_STAFF : NAV_PLAYER;
+  const isStaffOrLeader = user?.role === "staff" || user?.role === "leader";
+  const nav = isAdmin ? NAV_ADMIN : isStaffOrLeader ? NAV_STAFF : NAV_PLAYER;
 
   const handleLogout = async () => {
     await logoutUser();
@@ -54,9 +59,9 @@ export const Sidebar = () => {
         <div className="flex items-center justify-between px-4 h-14">
           {/* Logo mobile */}
           <div className="flex items-center gap-2">
-            <Image src="/logo.jpeg" alt="Logo" width={28} height={28} className="rounded-full object-cover shrink-0" />
+            <Image src="/logo.png" alt="Logo" width={28} height={28} className="rounded-full object-cover shrink-0" />
             <span className="font-gaming font-bold tracking-widest text-xs text-white">
-              BEYBLADE<span className="text-cyan-400">X</span> PAC
+              BEY<span className="text-blue-500">MATCH</span>
             </span>
           </div>
           {/* Hamburger */}
@@ -75,7 +80,7 @@ export const Sidebar = () => {
                 <Link key={item.href} href={item.href}
                   onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-4 px-4 py-4 rounded-xl transition-all text-base font-medium
-                    ${active ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/20" : "text-white hover:bg-white/5"}`}>
+                    ${active ? "bg-blue-600/15 text-blue-400 border border-blue-500/20" : "text-white hover:bg-white/5"}`}>
                   <span className="text-xl w-7 text-center">{item.icon}</span>
                   <span>{item.label}</span>
                 </Link>
@@ -106,10 +111,10 @@ export const Sidebar = () => {
       <aside className={`hidden md:flex flex-col border-r border-white/5 transition-all duration-300 ${collapsed ? "w-16" : "w-56"} shrink-0`} style={navStyle}>
         {/* Logo desktop */}
         <div className="h-16 flex items-center px-4 border-b border-white/5 gap-3">
-          <Image src="/logo.jpeg" alt="Logo" width={32} height={32} className="rounded-full object-cover shrink-0" />
+          <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-full object-cover shrink-0" />
           {!collapsed && (
             <span className="font-gaming font-bold tracking-widest text-sm text-white">
-              BEYBLADE<span className="text-cyan-400">X</span> PAC
+              BEY<span className="text-blue-500">MATCH</span>
             </span>
           )}
           <button onClick={() => setCollapsed(!collapsed)} className="ml-auto text-white hover:text-white transition-colors text-xs">
@@ -124,7 +129,7 @@ export const Sidebar = () => {
             return (
               <Link key={item.href} href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm font-medium
-                  ${active ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/20" : "text-white hover:bg-white/5"}`}>
+                  ${active ? "bg-blue-600/15 text-blue-400 border border-blue-500/20" : "text-white hover:bg-white/5"}`}>
                 <span className="text-base shrink-0">{item.icon}</span>
                 {!collapsed && <span>{item.label}</span>}
               </Link>

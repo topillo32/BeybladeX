@@ -8,16 +8,30 @@ import type { Tournament, TournamentStatus } from "@/types";
 const col = collection(db, "tournaments");
 
 export const createTournament = async (
-  data: Pick<Tournament, "name" | "maxPlayers" | "playersPerGroup"> & { location?: string; eventType: import("@/types").EventType; leagueId?: string },
+  data: Pick<Tournament, "name" | "maxPlayers" | "playersPerGroup"> & { location?: string; eventType: import("@/types").EventType; leagueId?: string; communityId?: string | null },
   uid: string
 ) => {
-  await addDoc(col, {
-    ...data,
+  const tournamentData: Record<string, unknown> = {
+    name: data.name,
+    maxPlayers: data.maxPlayers,
+    playersPerGroup: data.playersPerGroup,
+    eventType: data.eventType,
+    communityId: data.communityId ?? null,
     qualifiersCount: 0,
     status: "DRAFT" as TournamentStatus,
     createdBy: uid,
     createdAt: serverTimestamp(),
-  });
+  };
+
+  if (data.location !== undefined) {
+    tournamentData.location = data.location;
+  }
+
+  if (data.leagueId !== undefined) {
+    tournamentData.leagueId = data.leagueId;
+  }
+
+  await addDoc(col, tournamentData);
 };
 
 export const updateTournament = async (id: string, data: Partial<Tournament>) =>

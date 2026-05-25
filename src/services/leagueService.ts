@@ -7,8 +7,8 @@ import type { League, LeagueStandingEntry, Tournament, Match, Player } from "@/t
 
 const col = collection(db, "leagues");
 
-export const createLeague = async (name: string, description: string, uid: string) =>
-  addDoc(col, { name, description, createdBy: uid, createdAt: serverTimestamp() });
+export const createLeague = async (name: string, description: string, uid: string, communityId?: string | null) =>
+  addDoc(col, { name, description, communityId: communityId ?? null, createdBy: uid, createdAt: serverTimestamp() });
 
 export const deleteLeague = (id: string) => deleteDoc(doc(db, "leagues", id));
 

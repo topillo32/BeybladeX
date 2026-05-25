@@ -96,7 +96,6 @@ const Dashboard = () => {
     { id: "tournaments", label: "Torneos Activos", icon: Trophy, section: "main" },
     { id: "players", label: "Bladers", icon: Users, section: "main" },
     { id: "results", label: "Resultados", icon: LayoutGrid, section: "main" },
-    { id: "create_tournament", label: "Nuevo Torneo", icon: PlusCircle, section: "admin" },
   ];
 
   // Renderizado de Vistas
@@ -107,12 +106,6 @@ const Dashboard = () => {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-3xl font-extrabold text-white tracking-tight italic">ARENAS <span className="text-cyan-400">DISPONIBLES</span></h2>
-              <button 
-                onClick={() => setCurrentView("create_tournament")}
-                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-5 py-2 rounded-lg shadow-[0_0_20px_rgba(8,145,178,0.3)] transition-all transform hover:scale-105 font-bold uppercase text-sm tracking-wide flex items-center gap-2"
-              >
-                <PlusCircle size={20} /> Nuevo Torneo
-              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -125,74 +118,14 @@ const Dashboard = () => {
                   <p className="text-slate-500 text-sm mb-6 flex items-center gap-2">
                     <Calendar size={14} /> ID: {t.id.substring(0, 8)}...
                   </p>
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => { setSelectedTournamentId(t.id); setCurrentView("manage_groups"); }}
-                      className="flex-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 hover:border-cyan-400 py-2 rounded-lg text-sm font-bold uppercase transition-all flex justify-center items-center gap-2"
-                    >
-                      <Swords size={16} /> Gestionar
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>
           </div>
         );
 
-      case "create_tournament":
-        return (
-          <div className="max-w-2xl mx-auto bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 p-8">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3 border-b border-slate-800 pb-4">
-              <PlusCircle className="text-cyan-400" /> ORGANIZAR EVENTO
-            </h2>
-            <form onSubmit={handleCreateTournament} className="space-y-6">
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2 uppercase tracking-wider">Nombre del Evento</label>
-                <input 
-                  type="text" 
-                  value={newTournamentName}
-                  onChange={(e) => setNewTournamentName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-800 text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-all"
-                  placeholder="Ej: Gran Torneo Nacional Beyblade X"
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => setCurrentView("tournaments")}
-                  className="px-6 py-3 rounded-lg text-slate-400 font-medium hover:bg-slate-800 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={!newTournamentName.trim()}
-                  className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-black font-bold rounded-lg shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Crear Torneo
-                </button>
-              </div>
-            </form>
-          </div>
-        );
-
       case "players":
         return <PlayerManagement />;
-
-      case "manage_groups":
-        return selectedTournamentId ? (
-          <div>
-             <button 
-                onClick={() => setCurrentView("tournaments")}
-                className="mb-6 text-slate-400 hover:text-cyan-400 flex items-center gap-1 text-sm font-bold uppercase transition-colors"
-             >
-                 ← Volver a Torneos
-             </button>
-             <GroupManagement tournamentId={selectedTournamentId} />
-          </div>
-        ) : (
-          <div>Seleccione un torneo primero</div>
-        );
 
       default:
         return <div className="text-center text-slate-500 mt-20">Seleccione una opción del menú lateral</div>;

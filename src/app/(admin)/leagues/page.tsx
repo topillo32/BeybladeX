@@ -1,36 +1,38 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useState, FormEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useLeagues } from "@/hooks/useTournament";
 import { useAuthContext } from "@/lib/AuthContext";
-import { createLeague, deleteLeague } from "@/services/leagueService";
+import { deleteLeague } from "@/services/leagueService";
 import { useLang } from "@/lib/LangContext";
+import { Pagination } from "@/components/ui/Pagination";
+
+const ITEMS_PER_PAGE = 10;
 
 export default function LeaguesPage() {
   const { leagues, loading } = useLeagues();
   const { user, isAdmin } = useAuthContext();
   const { t } = useLang();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const handleCreate = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !user) return;
-    setSubmitting(true);
-    try {
-      await createLeague(name.trim(), description.trim(), user.uid);
-      setName(""); setDescription("");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const userCommunityIds = Array.isArray(user?.communityId)
+    ? user.communityId
+    : user?.communityId
+      ? [user.communityId]
+      : [];
+
+  const visibleLeagues = isAdmin
+    ? leagues
+    : leagues.filter((league) => league.communityId && userCommunityIds.includes(league.communityId));
 
   const handleDelete = async (id: string) => {
     if (!window.confirm(t("deleteConfirm"))) return;
     await deleteLeague(id);
   };
+
+  const totalPages = Math.ceil(visibleLeagues.length / ITEMS_PER_PAGE);
+  const paginatedLeagues = visibleLeagues.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   return (
     <div className="page-wrapper">
@@ -39,21 +41,6 @@ export default function LeaguesPage() {
           <h1 className="font-gaming text-3xl font-black tracking-widest text-white">🏅 {t("leagues")}</h1>
           <div className="divider-cyan mt-3" />
         </div>
-
-        {isAdmin && (
-          <div className="card card-cyan p-5">
-            <p className="section-title">{t("createLeague")}</p>
-            <form onSubmit={handleCreate} className="space-y-3">
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                placeholder={t("leagueName")} className="input-base" required />
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
-                placeholder={t("leagueDescription")} className="input-base text-sm" />
-              <button type="submit" disabled={submitting} className="btn-primary w-full font-gaming text-xs tracking-wider">
-                {submitting ? t("creating") : t("createLeague")}
-              </button>
-            </form>
-          </div>
-        )}
 
         {loading ? (
           <div className="flex justify-center py-12">
@@ -70,7 +57,7 @@ export default function LeaguesPage() {
         ) : (
           <div className="card overflow-hidden">
             <ul className="divide-y divide-white/5">
-              {leagues.map((league) => (
+              {paginatedLeagues.map((league) => (
                 <li key={league.id} className="flex items-center justify-between px-5 py-4 hover:bg-white/3 transition-colors">
                   <div className="min-w-0 flex-1">
                     <p className="font-gaming font-bold text-white tracking-wide truncate">{league.name}</p>
@@ -87,6 +74,9 @@ export default function LeaguesPage() {
                 </li>
               ))}
             </ul>
+            
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            <div className="pb-4" />
           </div>
         )}
       </div>

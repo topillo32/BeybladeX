@@ -35,6 +35,7 @@ export const registerUser = async (
     displayName,
     displayNameLower: displayName.trim().toLowerCase(),
     role,
+    communityId: null,
     createdAt: serverTimestamp(),
   });
 
@@ -84,6 +85,29 @@ export const onAuthChange = (cb: (user: User | null) => void) =>
 
 export const updateUserRole = (uid: string, role: UserRole) =>
   setDoc(doc(db, "users", uid), { role }, { merge: true });
+
+export const updateUserCommunity = (uid: string, communityId: string | null) =>
+  setDoc(doc(db, "users", uid), { communityId }, { merge: true });
+
+export const assignUserToStaffInCommunity = async (uid: string, communityId: string) => {
+  const userSnap = await getDoc(doc(db, "users", uid));
+  if (!userSnap.exists()) throw new Error("Usuario no encontrado");
+
+  const userData = userSnap.data() as AppUser;
+  const existingCommunityId = userData.communityId;
+  let newCommunityId: string | string[] | null = communityId;
+
+  if (Array.isArray(existingCommunityId)) {
+    newCommunityId = Array.from(new Set([...existingCommunityId, communityId]));
+  } else if (existingCommunityId && existingCommunityId !== communityId) {
+    newCommunityId = Array.from(new Set([existingCommunityId, communityId]));
+  }
+
+  await setDoc(doc(db, "users", uid), {
+    role: "staff",
+    communityId: newCommunityId,
+  }, { merge: true });
+};
 
 export const getAllUsers = async (): Promise<AppUser[]> => {
   const snap = await getDocs(query(collection(db, "users"), orderBy("createdAt", "desc")));

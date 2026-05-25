@@ -1,34 +1,54 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
-import { getAllUsers, updateUserRole } from "@/services/authService";
+import { getAllUsers, updateUserCommunity, updateUserRole } from "@/services/authService";
 import { setJudgeAvailability } from "@/services/judgeService";
+import { getCommunities } from "@/services/communityService";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { RoleBadge } from "@/components/ui/Badges";
 import { Spinner } from "@/components/ui/Spinner";
 import { useLang } from "@/lib/LangContext";
-import type { AppUser, UserRole } from "@/types";
+import { Pagination } from "@/components/ui/Pagination";
+import type { AppUser, Community, UserRole } from "@/types";
 
-const ROLES: UserRole[] = ["admin", "staff", "player"];
+const ROLES: UserRole[] = ["admin", "leader", "staff", "player"];
+const ITEMS_PER_PAGE = 20;
 
 export default function UsersPage() {
   const { isAdmin } = useAuthContext();
   const { t } = useLang();
   const router = useRouter();
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!isAdmin) { router.push("/dashboard"); return; }
-    getAllUsers().then((u) => { setUsers(u); setLoading(false); });
+
+    const load = async () => {
+      const [u, c] = await Promise.all([getAllUsers(), getCommunities()]);
+      setUsers(u);
+      setCommunities(c);
+      setLoading(false);
+    };
+
+    void load();
   }, [isAdmin, router]);
 
   const handleRoleChange = async (uid: string, role: UserRole) => {
     setUpdating(uid);
     await updateUserRole(uid, role);
     setUsers((prev) => prev.map((u) => u.uid === uid ? { ...u, role } : u));
+    setUpdating(null);
+  };
+
+  const handleCommunityChange = async (uid: string, communityId: string) => {
+    setUpdating(uid);
+    await updateUserCommunity(uid, communityId || null);
+    setUsers((prev) => prev.map((u) => u.uid === uid ? { ...u, communityId: communityId || null } : u));
     setUpdating(null);
   };
 
@@ -41,6 +61,9 @@ export default function UsersPage() {
 
   if (loading) return <Spinner size={12} />;
 
+  const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
+  const paginatedUsers = users.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
   return (
     <div className="page-wrapper">
       <div className="w-full max-w-3xl space-y-6">
@@ -51,7 +74,7 @@ export default function UsersPage() {
 
         <div className="card overflow-hidden">
           <ul className="divide-y divide-white/5">
-            {users.map((u) => (
+            {paginatedUsers.map((u) => (
               <li key={u.uid} className="flex items-center justify-between px-4 py-3.5 hover:bg-white/3 transition-colors gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-white truncate text-sm">{u.displayName}</p>
@@ -83,10 +106,24 @@ export default function UsersPage() {
                       <option key={r} value={r} className="bg-[#050d1a]">{r}</option>
                     ))}
                   </select>
+                  <select
+                    value={u.communityId || ""}
+                    disabled={updating === u.uid}
+                    onChange={(e) => handleCommunityChange(u.uid, e.target.value)}
+                    className="bg-white/5 border border-white/10 text-white text-xs font-gaming rounded-lg px-2 py-1.5 outline-none focus:border-cyan-500/50 disabled:opacity-50 cursor-pointer"
+                  >
+                    <option value="">Sin comunidad</option>
+                    {communities.map((community) => (
+                      <option key={community.id} value={community.id} className="bg-[#050d1a]">{community.name}</option>
+                    ))}
+                  </select>
                 </div>
               </li>
             ))}
           </ul>
+
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+          <div className="pb-4" />
         </div>
       </div>
     </div>

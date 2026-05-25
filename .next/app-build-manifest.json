@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/(admin)/dashboard/page": [
+    "/(admin)/tournaments/[tournamentId]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/dashboard/page.js"
+      "static/chunks/app/(admin)/tournaments/[tournamentId]/page.js"
     ],
     "/(admin)/layout": [
       "static/chunks/webpack.js",
@@ -16,30 +16,40 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/auth/page": [
+    "/(admin)/tournaments/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/auth/page.js"
+      "static/chunks/app/(admin)/tournaments/page.js"
     ],
-    "/page": [
+    "/(admin)/leagues/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/chunks/app/(admin)/leagues/page.js"
     ],
-    "/(player)/player/tournaments/page": [
+    "/(admin)/leagues/[leagueId]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(player)/player/tournaments/page.js"
+      "static/chunks/app/(admin)/leagues/[leagueId]/page.js"
     ],
-    "/(player)/layout": [
+    "/(admin)/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(player)/layout.js"
+      "static/chunks/app/(admin)/dashboard/page.js"
     ],
-    "/(admin)/tournaments/[tournamentId]/page": [
+    "/(admin)/communities/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/tournaments/[tournamentId]/page.js"
+      "static/chunks/app/(admin)/communities/page.js"
+    ],
+    "/(admin)/setup/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/setup/page.js"
+    ],
+    "/(admin)/users/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/users/page.js"
     ]
   }
 }

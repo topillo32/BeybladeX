@@ -106,10 +106,10 @@ export default function AuthPage() {
         {/* Logo */}
         <div className="text-center space-y-2">
           <div className="relative w-16 h-16 mx-auto animate-float">
-            <Image src="/logo.jpeg" alt="Logo" width={64} height={64} className="rounded-full object-cover w-full h-full" />
+            <Image src="/logo.png" alt="BeyMatch Logo" width={64} height={64} className="rounded-full object-cover w-full h-full" />
           </div>
           <h1 className="font-gaming text-2xl font-black tracking-widest animate-pulse-glow">
-            BEYBLADE<span className="text-cyan-400">X</span> PAC
+            BEY<span className="text-blue-500">MATCH</span>
           </h1>
           <p className="text-gray-400 text-sm">{t("tournamentManager")}</p>
         </div>
@@ -123,13 +123,13 @@ export default function AuthPage() {
         )}
 
         {/* Card */}
-        <div className="card card-cyan p-6 space-y-4">
+        <div className="card border-blue-500/20 bg-blue-600/5 p-6 space-y-4">
           {/* Lang toggle */}
           <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
             {(["es", "en"] as const).map((l) => (
               <button key={l} onClick={() => setLang(l)}
                 className={`flex-1 py-1.5 rounded-lg font-gaming text-xs tracking-widest transition-all uppercase
-                  ${lang === l ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
+                  ${lang === l ? "bg-blue-600/20 border border-blue-500/30 text-blue-400" : "text-gray-500 hover:text-gray-300"}`}>
                 {l}
               </button>
             ))}
@@ -140,7 +140,7 @@ export default function AuthPage() {
             {(["login", "register"] as const).map((m) => (
               <button key={m} onClick={() => { setMode(m); setError(null); setFieldErrors({}); setResetSent(false); }}
                 className={`flex-1 py-2 rounded-lg font-gaming text-xs tracking-widest transition-all
-                  ${mode === m ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
+                  ${mode === m ? "bg-blue-600/20 border border-blue-500/30 text-blue-400" : "text-gray-500 hover:text-gray-300"}`}>
                 {m === "login" ? t("login") : t("register")}
               </button>
             ))}
@@ -153,9 +153,9 @@ export default function AuthPage() {
                 <div className="text-center space-y-3 py-2">
                   <p className="text-3xl">📧</p>
                   <p className="text-white font-semibold text-sm">Revisa tu correo</p>
-                  <p className="text-gray-400 text-xs">Enviamos un enlace a <span className="text-cyan-400">{email}</span></p>
+                  <p className="text-gray-400 text-xs">Enviamos un enlace a <span className="text-blue-400">{email}</span></p>
                   <button onClick={() => { setMode("login"); setResetSent(false); setEmail(""); }}
-                    className="text-cyan-500 hover:underline text-xs font-gaming tracking-wider">
+                    className="text-blue-500 hover:underline text-xs font-gaming tracking-wider">
                     ← Volver al inicio de sesión
                   </button>
                 </div>
@@ -249,7 +249,7 @@ export default function AuthPage() {
 
             {mode === "login" && (
               <button type="button" onClick={() => { setMode("reset"); setError(null); setFieldErrors({}); setResetSent(false); }}
-                className="w-full text-center text-gray-500 hover:text-cyan-400 text-xs transition-colors">
+                className="w-full text-center text-gray-500 hover:text-blue-400 text-xs transition-colors">
                 ¿Olvidaste tu contraseña?
               </button>
             )}
@@ -258,7 +258,7 @@ export default function AuthPage() {
         </div>
 
         <p className="text-center text-gray-600 text-xs">
-          <a href="/t" className="text-cyan-500 hover:underline">{t("viewPublic")}</a>
+          <a href="/t" className="text-blue-500 hover:underline">{t("viewPublic")}</a>
         </p>
       </div>
     </div>

@@ -2,21 +2,23 @@
 export const dynamic = "force-dynamic";
 import { useState } from "react";
 import { usePlayers } from "@/hooks/useTournament";
-import { createPlayer, deletePlayer, linkPlayerToUser } from "@/services/playerService";
+import { deletePlayer, linkPlayerToUser } from "@/services/playerService";
 import { getAllUsers } from "@/services/authService";
 import { useAuthContext } from "@/lib/AuthContext";
 import { Spinner } from "@/components/ui/Spinner";
 import { useLang } from "@/lib/LangContext";
+import { Pagination } from "@/components/ui/Pagination";
 import type { AppUser, Player } from "@/types";
+
+const ITEMS_PER_PAGE = 15;
 
 export default function AdminPlayersPage() {
   const { players, loading } = usePlayers();
   const { isAdmin } = useAuthContext();
   const { t } = useLang();
-  const [name, setName] = useState("");
-  const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   // Link modal
   const [linkTarget, setLinkTarget] = useState<Player | null>(null);
@@ -26,21 +28,6 @@ export default function AdminPlayersPage() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [linking, setLinking] = useState(false);
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setWorking(true);
-    setError(null);
-    try {
-      await createPlayer(name.trim());
-      setName("");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setWorking(false);
-    }
-  };
 
   const handleDelete = async (id: string, playerName: string) => {
     if (!confirm(`¿Eliminar a "${playerName}" permanentemente?`)) return;
@@ -82,6 +69,9 @@ export default function AdminPlayersPage() {
     p.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedPlayers = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
   const filteredUsers = users.filter(
     (u) =>
       u.displayName.toLowerCase().includes(userSearch.toLowerCase()) ||
@@ -100,26 +90,12 @@ export default function AdminPlayersPage() {
           <div className="divider-cyan mt-2" />
         </div>
 
-        {isAdmin && (
-          <form onSubmit={handleCreate} className="card p-4 flex gap-3">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nombre del jugador"
-              className="input-base flex-1 text-sm"
-            />
-            <button type="submit" disabled={working || !name.trim()} className="btn-primary font-gaming text-xs tracking-wider px-5 shrink-0">
-              {working ? "..." : "+ Agregar"}
-            </button>
-          </form>
-        )}
         {error && <p className="text-red-400 text-sm">{error}</p>}
 
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           placeholder="Buscar jugador..."
           className="input-base text-sm w-full"
         />
@@ -149,7 +125,7 @@ export default function AdminPlayersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filtered.map((p) => (
+                {paginatedPlayers.map((p) => (
                   <tr key={p.id} className="hover:bg-white/3 transition-colors group">
                     <td className="px-4 py-3">
                       <p className="font-medium text-white">{p.name}</p>
@@ -195,6 +171,9 @@ export default function AdminPlayersPage() {
                 ))}
               </tbody>
             </table>
+            
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            <div className="pb-4" />
           </div>
         )}
       </div>

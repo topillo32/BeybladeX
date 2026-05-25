@@ -5,10 +5,12 @@ import { useAuthContext } from "@/lib/AuthContext";
 import { useParts } from "@/hooks/useParts";
 import { createPart } from "@/lib/repositories/partsRepository";
 import { Spinner } from "@/components/ui/Spinner";
+import { Pagination } from "@/components/ui/Pagination";
 import type { PartType, BladeSystem } from "@/types/combos";
 
 const PART_TYPES: PartType[] = ["Blade", "Ratchet", "Bit"];
 const BLADE_SYSTEMS: BladeSystem[] = ["BX", "CX", "UX"];
+const ITEMS_PER_PAGE = 20;
 
 // Formato esperado del JSON/TXT:
 // [{"name":"Dran Sword","type":"Blade","bladeSystem":"BX"}, ...]
@@ -32,6 +34,7 @@ export default function PartsPage() {
   const { isAdmin } = useAuthContext();
   const [activeType, setActiveType] = useState<PartType>("Blade");
   const { parts, loading, refresh } = useParts(activeType);
+  const [page, setPage] = useState(1);
 
   // Formulario individual
   const [name, setName] = useState("");
@@ -102,6 +105,9 @@ export default function PartsPage() {
     }
   };
 
+  const totalPages = Math.ceil(parts.length / ITEMS_PER_PAGE);
+  const paginatedParts = parts.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
   return (
     <div className="page-wrapper">
       <div className="w-full max-w-3xl space-y-6">
@@ -113,7 +119,7 @@ export default function PartsPage() {
         {/* Tabs por tipo */}
         <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
           {PART_TYPES.map((type) => (
-            <button key={type} onClick={() => setActiveType(type)}
+            <button key={type} onClick={() => { setActiveType(type); setPage(1); }}
               className={`flex-1 py-2 rounded-lg font-gaming text-xs tracking-widest transition-all
                 ${activeType === type ? "bg-cyan-500/20 border border-cyan-500/30 text-cyan-300" : "text-gray-500 hover:text-gray-300"}`}>
               {type}
@@ -229,7 +235,7 @@ Flat,Bit`}</pre>
               <span className="font-gaming text-xs text-gray-500">{parts.length} piezas</span>
             </div>
             <ul className="divide-y divide-white/5">
-              {parts.map((p) => (
+              {paginatedParts.map((p) => (
                 <li key={p.id} className="flex items-center justify-between px-5 py-3.5">
                   <div className="flex items-center gap-3">
                     <span className="font-medium text-white">{p.name}</span>
@@ -248,6 +254,9 @@ Flat,Bit`}</pre>
                 </li>
               ))}
             </ul>
+            
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            <div className="pb-4" />
           </div>
         )}
       </div>

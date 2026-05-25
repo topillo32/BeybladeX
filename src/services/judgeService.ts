@@ -3,12 +3,24 @@ import { db } from "./firebase";
 import type { AppUser } from "@/types";
 
 /**
- * Obtiene jueces disponibles (staff/admin con availableAsJudge=true)
- * que no tengan ya un grupo activo asignado. Un juez puede ser jugador en el torneo
- * pero solo se filtrará en el momento de asignar a un grupo específico.
+ * Obtiene jueces disponibles:
+ * - staff/admin deben tener availableAsJudge=true
+ * - leader está siempre disponible dentro de su comunidad
+ * que no tengan ya un grupo activo asignado.
+ * Un juez puede ser jugador en el torneo pero se filtra por grupo.
  */
+const belongsToCommunity = (user: AppUser, communityId?: string) => {
+  if (!communityId) return true;
+  if (!user.communityId) return false;
+  const userCommunityIds = Array.isArray(user.communityId)
+    ? user.communityId
+    : [user.communityId];
+  return userCommunityIds.includes(communityId);
+};
+
 export const getAvailableJudges = async (
-  alreadyAssignedJudgeIds: string[] // judgeIds ya asignados a otros grupos activos
+  alreadyAssignedJudgeIds: string[], // judgeIds ya asignados a otros grupos activos
+  communityId?: string
 ): Promise<AppUser[]> => {
   const snap = await getDocs(
     query(collection(db, "users"),
@@ -18,8 +30,10 @@ export const getAvailableJudges = async (
   return snap.docs
     .map((d) => ({ uid: d.id, ...d.data() } as AppUser))
     .filter((u) =>
-      (u.role === "staff" || u.role === "admin") &&
-      !alreadyAssignedJudgeIds.includes(u.uid)
+      (u.role === "staff" || u.role === "admin" || u.role === "leader") &&
+      (u.role === "leader" || u.availableAsJudge === true) &&
+      !alreadyAssignedJudgeIds.includes(u.uid) &&
+      belongsToCommunity(u, communityId)
     );
 };
 
@@ -30,13 +44,14 @@ export const getAvailableJudges = async (
 export const autoAssignJudges = async (
   tournamentId: string,
   groups: { id: string; playerIds: string[]; judgeId?: string | null }[],
-  players: { id: string; userId?: string }[]
+  players: { id: string; userId?: string }[],
+  communityId?: string
 ): Promise<void> => {
   const activeJudgeIds = groups
     .filter((g) => g.judgeId)
     .map((g) => g.judgeId as string);
 
-  const available = await getAvailableJudges(activeJudgeIds);
+  const available = await getAvailableJudges(activeJudgeIds, communityId);
   if (available.length === 0) return;
 
   const groupsWithoutJudge = groups.filter((g) => !g.judgeId);
