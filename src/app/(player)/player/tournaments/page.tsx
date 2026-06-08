@@ -3,13 +3,15 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { collection, onSnapshot } from "firebase/firestore";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useTournaments } from "@/hooks/useTournament";
+import { db } from "@/services/firebase";
 import { getPlayerByUserId, enrollPlayerInTournament, leavePlayerFromTournament } from "@/services/playerService";
 import { StatusBadge } from "@/components/ui/Badges";
 import { Spinner } from "@/components/ui/Spinner";
 import { useLang } from "@/lib/LangContext";
-import type { Player, Tournament } from "@/types";
+import type { AppUser, Player, Tournament } from "@/types";
 import { OPEN_REGISTRATION_STATUSES as OPEN_REG } from "@/types";
 
 export default function PlayerTournamentsPage() {
@@ -21,11 +23,40 @@ export default function PlayerTournamentsPage() {
   const [player, setPlayer] = useState<Player | null | undefined>(undefined);
   const [enrolling, setEnrolling] = useState<string | null>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
+  const [communityLeaders, setCommunityLeaders] = useState<Record<string, string[]>>({});
+  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) return;
     getPlayerByUserId(user.uid).then(setPlayer);
   }, [user]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "users"), (snap) => {
+      const leadersMap: Record<string, string[]> = {};
+      const creatorsMap: Record<string, string> = {};
+
+      snap.docs.forEach((doc) => {
+        const user = doc.data() as AppUser;
+        const name = user.displayName || user.email || "Líder desconocido";
+        creatorsMap[user.uid] = name;
+
+        if (user.role === "leader" && user.communityId) {
+          const communityIds = Array.isArray(user.communityId) ? user.communityId : [user.communityId];
+          communityIds.forEach((communityId) => {
+            if (!communityId) return;
+            leadersMap[communityId] = leadersMap[communityId] ?? [];
+            if (!leadersMap[communityId].includes(name)) leadersMap[communityId].push(name);
+          });
+        }
+      });
+
+      setCommunityLeaders(leadersMap);
+      setCreatorNames(creatorsMap);
+    });
+
+    return unsub;
+  }, []);
 
   const openTournaments = tournaments.filter((t) => OPEN_REG.includes(t.status));
   const activeTournaments = tournaments.filter(
@@ -41,6 +72,20 @@ export default function PlayerTournamentsPage() {
     if (player.tournamentIds?.includes(t.id)) return "enrolled";
     if (player.pendingTournamentIds?.includes(t.id)) return "pending";
     return "none";
+  };
+
+  const renderLeaders = (tournament: Tournament) => {
+    const names = tournament.communityId
+      ? communityLeaders[tournament.communityId]
+      : creatorNames[tournament.createdBy]
+        ? [creatorNames[tournament.createdBy]]
+        : undefined;
+    if (!names?.length) return null;
+    return (
+      <p className="text-gray-400 text-xs break-words mt-1">
+        🧑‍💼 Líder{names.length > 1 ? "es" : ""}: {names.join(", ")}
+      </p>
+    );
   };
 
   const handleEnroll = async (tournament: Tournament) => {
@@ -76,7 +121,7 @@ export default function PlayerTournamentsPage() {
 
   return (
     <div className="page-wrapper">
-      <div className="w-full max-w-2xl space-y-6">
+      <div className="w-full max-w-2xl space-y-4">
         <div className="space-y-1">
           <h1 className="font-gaming text-2xl font-black tracking-widest text-white">
             🌀 {t("availableTournaments")}
@@ -100,10 +145,11 @@ export default function PlayerTournamentsPage() {
             <p className="section-title">⚔️ En curso</p>
             <ul className="space-y-3">
               {activeTournaments.map((tournament) => (
-                <li key={tournament.id} className="card card-cyan p-4 flex items-center gap-4">
+                <li key={tournament.id} className="card card-cyan p-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="flex-1 space-y-1 min-w-0">
                     <p className="font-gaming font-bold text-white tracking-wide truncate">{tournament.name}</p>
                     <StatusBadge status={tournament.status} />
+                    {renderLeaders(tournament)}
                   </div>
                   <Link
                     href={`/player/tournaments/${tournament.id}`}
@@ -128,7 +174,7 @@ export default function PlayerTournamentsPage() {
         <div className="space-y-3">
           <p className="section-title">📋 {t("availableTournaments")}</p>
           {openTournaments.length === 0 ? (
-            <div className="card p-12 text-center space-y-3">
+            <div className="card p-8 text-center space-y-3">
               <p className="text-4xl">🏆</p>
               <p className="text-white font-semibold">{t("noOpenTournaments")}</p>
             </div>
@@ -139,18 +185,19 @@ export default function PlayerTournamentsPage() {
                 const isEnrolling = enrolling === tournament.id;
 
                 return (
-                  <li key={tournament.id} className="card p-4 flex items-center gap-4">
+                  <li key={tournament.id} className="card p-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                     <div className="flex-1 space-y-1 min-w-0">
                       <p className="font-gaming font-bold text-white tracking-wide truncate">
                         {tournament.name}
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge status={tournament.status} />
                         <span className="text-gray-500 text-xs">{tournament.maxPlayers} max</span>
                       </div>
+                      {renderLeaders(tournament)}
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
                       <Link
                         href={`/player/tournaments/${tournament.id}`}
                         className="font-gaming text-xs text-cyan-400 border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-1.5 rounded-lg transition-all"
@@ -203,10 +250,11 @@ export default function PlayerTournamentsPage() {
             <p className="section-title">✅ Finalizados</p>
             <ul className="space-y-3">
               {finishedTournaments.map((tournament) => (
-                <li key={tournament.id} className="card p-4 flex items-center gap-4 opacity-70">
+                <li key={tournament.id} className="card p-4 flex flex-col gap-4 sm:flex-row sm:items-center opacity-70">
                   <div className="flex-1 space-y-1 min-w-0">
                     <p className="font-gaming font-bold text-white tracking-wide truncate">{tournament.name}</p>
                     <StatusBadge status={tournament.status} />
+                    {renderLeaders(tournament)}
                   </div>
                   <Link
                     href={`/player/tournaments/${tournament.id}`}

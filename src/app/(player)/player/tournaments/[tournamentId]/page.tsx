@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useTournament, useGroups, useMatches, usePlayers, useCurrentPlayer } from "@/hooks/useTournament";
 import { computeGlobalStandings, computeGroupStandings } from "@/services/standingsService";
@@ -11,6 +11,9 @@ import { MatchCard } from "@/components/ui/MatchCard";
 import { Spinner } from "@/components/ui/Spinner";
 import { useLang } from "@/lib/LangContext";
 import { useAuthContext } from "@/lib/AuthContext";
+import { db } from "@/services/firebase";
+import { collection, onSnapshot } from "firebase/firestore";
+import type { AppUser } from "@/types";
 
 type Tab = "overview" | "groups" | "matches" | "standings" | "bracket";
 
@@ -24,6 +27,26 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
   const { user } = useAuthContext();
   const { player: myPlayer } = useCurrentPlayer(user?.uid);
   const [tab, setTab] = useState<Tab>("overview");
+  const [leaders, setLeaders] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!tournament) return;
+    return onSnapshot(collection(db, "users"), (snap) => {
+      const names = snap.docs
+        .map((doc) => doc.data() as AppUser)
+        .filter((u) => {
+          if (tournament.communityId) {
+            return u.role === "leader" && (
+              u.communityId === tournament.communityId ||
+              (Array.isArray(u.communityId) && u.communityId.includes(tournament.communityId))
+            );
+          }
+          return u.uid === tournament.createdBy;
+        })
+        .map((u) => u.displayName || u.email || "Líder desconocido");
+      setLeaders(Array.from(new Set(names)));
+    });
+  }, [tournament]);
 
   if (loading) return <Spinner size={12} />;
   if (!tournament) return <div className="page-wrapper"><p className="text-gray-400">{t("tournamentNotFound")}</p></div>;
@@ -53,6 +76,9 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
           </div>
           {tournament.location && (
             <p className="text-gray-400 text-sm mt-1">📍 {tournament.location}</p>
+          )}
+          {leaders.length > 0 && (
+            <p className="text-gray-400 text-sm mt-1">🧑‍💼 Líder{leaders.length > 1 ? "es" : ""}: {leaders.join(", ")}</p>
           )}
         </div>
 
@@ -115,7 +141,7 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
           {tab === "groups" && (
             <div className="space-y-6">
               {groups.length === 0 ? (
-                <div className="card p-10 text-center">
+                <div className="card p-6 text-center">
                   <p className="text-4xl mb-3">👥</p>
                   <p className="text-white font-semibold">{t("noGroupsYet")}</p>
                 </div>
@@ -149,7 +175,7 @@ export default function PlayerTournamentDetailPage({ params }: { params: { tourn
           {tab === "matches" && (
             <div className="space-y-4">
               {groupMatches.length === 0 ? (
-                <div className="card p-10 text-center">
+                <div className="card p-6 text-center">
                   <p className="text-4xl mb-3">⚔️</p>
                   <p className="text-white font-semibold">{t("noMatchesYet")}</p>
                 </div>

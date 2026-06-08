@@ -13,7 +13,9 @@ import { useLang } from "@/lib/LangContext";
 import { LangToggle } from "@/components/ui/LangToggle";
 import { useAuthContext } from "@/lib/AuthContext";
 import { getPlayerByUserId, enrollPlayerInTournament, leavePlayerFromTournament } from "@/services/playerService";
-import type { Player } from "@/types";
+import { db } from "@/services/firebase";
+import { collection, onSnapshot } from "firebase/firestore";
+import type { AppUser, Player } from "@/types";
 import { OPEN_REGISTRATION_STATUSES as OPEN_REG } from "@/types";
 
 type Tab = "participants" | "groups" | "matches" | "standings" | "bracket";
@@ -29,6 +31,7 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("participants");
   const [player, setPlayer] = useState<Player | null | undefined>(undefined);
+  const [leaders, setLeaders] = useState<string[]>([]);
   const [enrolling, setEnrolling] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -38,6 +41,27 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
     if (!user) { setPlayer(null); return; }
     getPlayerByUserId(user.uid).then(setPlayer);
   }, [user, authLoading]);
+
+  useEffect(() => {
+    if (!tournament) return;
+    const unsubscribe = onSnapshot(collection(db, "users"), (snap) => {
+      const names = snap.docs
+        .map((doc) => doc.data() as AppUser)
+        .filter((u) => {
+          if (tournament.communityId) {
+            return u.role === "leader" && (
+              u.communityId === tournament.communityId ||
+              (Array.isArray(u.communityId) && u.communityId.includes(tournament.communityId))
+            );
+          }
+          return u.uid === tournament.createdBy;
+        })
+        .map((u) => u.displayName || u.email || "Líder desconocido");
+
+      setLeaders(Array.from(new Set(names)));
+    });
+    return unsubscribe;
+  }, [tournament]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center"><Spinner /></div>
@@ -99,7 +123,7 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
 
   return (
     <div className="page-wrapper">
-      <div className="w-full max-w-4xl space-y-6">
+      <div className="w-full max-w-4xl space-y-4">
 
         <div className="text-center space-y-2">
           <div className="flex justify-end"><LangToggle /></div>
@@ -107,6 +131,9 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
           <h1 className="font-gaming text-3xl font-black tracking-widest text-white">{tournament.name}</h1>
           {tournament.location && (
             <p className="text-white/70 text-sm">📍 {tournament.location}</p>
+          )}
+          {leaders.length > 0 && (
+            <p className="text-white/70 text-sm">🧑‍💼 Líder{leaders.length > 1 ? "es" : ""}: {leaders.join(", ")}</p>
           )}
           {liveMatches.length > 0 && (
             <div className="flex items-center justify-center gap-2">
@@ -119,15 +146,15 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
           <div className="divider-cyan" />
         </div>
 
-        <div className="card p-4">
+        <div className="card p-3 sm:p-4">
           <TournamentStepper status={tournament.status} />
         </div>
 
         {/* Botón de inscripción — visible para todos cuando el torneo está abierto */}
         {OPEN_REG.includes(tournament.status) && (
-          <div className="card p-4 space-y-2">
+          <div className="card p-3 sm:p-4 space-y-2">
             {actionError && <p className="text-red-400 text-xs text-center">{actionError}</p>}
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
               <div>
                 <p className="text-white font-semibold text-sm">📋 {t("registrationOpen")}</p>
                 {myStatus === "enrolled" && <p className="text-green-400 text-xs font-gaming mt-0.5">✅ {t("alreadyEnrolled")}</p>}
@@ -177,7 +204,7 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
 
           {tab === "participants" && (
             <div className="card overflow-hidden">
-              <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
                 <p className="section-title mb-0">👤 {t("participants")}</p>
                 <span className="font-gaming text-xs text-cyan-400">
                   {registeredNames.length} / {tournament.maxPlayers}
@@ -194,7 +221,7 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
               ) : (
                 <ul className="divide-y divide-white/5">
                   {registeredNames.map((name, i) => (
-                    <li key={name} className="flex items-center gap-4 px-5 py-3">
+                    <li key={name} className="flex items-center gap-3 px-4 py-2.5">
                       <span className={`font-gaming text-sm font-bold w-6 text-right shrink-0
                         ${i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-amber-600" : "text-gray-600"}`}>
                         {i + 1}
@@ -229,7 +256,7 @@ export default function PublicTournamentPage({ params }: { params: { tournamentI
           {tab === "matches" && (
             <div className="grid md:grid-cols-2 gap-4">
               {groupMatches.length === 0
-                ? <div className="card p-10 text-center col-span-2"><p className="text-gray-400">{t("noMatchesYet")}</p></div>
+                ? <div className="card p-6 text-center col-span-2"><p className="text-gray-400">{t("noMatchesYet")}</p></div>
                 : groupMatches.map((m) => <MatchCard key={m.id} match={m} tournamentId={tournamentId} editable={false} />)
               }
             </div>

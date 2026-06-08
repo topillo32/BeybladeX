@@ -59,7 +59,7 @@ export const TournamentManagement = () => {
         </div>
 
         {/* Form */}
-        <div className={`card card-cyan p-5 animate-fade-in`}>
+        <div className={`card card-cyan p-4 animate-fade-in`}>
           <p className="section-title">{editing ? `Editing — ${editing.name}` : "Create new tournament"}</p>
           <form onSubmit={handleSubmit} className="flex gap-2">
             <input
@@ -90,21 +90,21 @@ export const TournamentManagement = () => {
             </div>
           </div>
         ) : tournaments.length === 0 ? (
-          <div className="card p-10 text-center">
+          <div className="card p-6 text-center">
             <p className="text-4xl mb-3">🏆</p>
             <p className="text-white font-semibold">No tournaments yet</p>
             <p className="text-gray-300 text-sm mt-1">Create your first tournament using the form above</p>
           </div>
         ) : (
           <div className="card overflow-hidden">
-            <div className="px-5 py-3 border-b border-white/5">
+            <div className="px-4 py-2.5 border-b border-white/5">
               <p className="section-title mb-0">{tournaments.length} tournament{tournaments.length !== 1 ? "s" : ""}</p>
             </div>
             <ul className="divide-y divide-white/5">
               {tournaments.map((t, i) => {
                 const isEditing = editing?.id === t.id;
                 return (
-                  <li key={t.id} className={`flex items-center justify-between px-5 py-4 transition-colors ${isEditing ? "bg-cyan-500/5" : "hover:bg-white/3"}`}>
+                  <li key={t.id} className={`flex items-center justify-between px-4 py-3 transition-colors ${isEditing ? "bg-cyan-500/5" : "hover:bg-white/3"}`}>
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/15 flex items-center justify-center font-gaming text-cyan-400 text-xs font-bold shrink-0">
                         {String(tournaments.length - i).padStart(2, "0")}

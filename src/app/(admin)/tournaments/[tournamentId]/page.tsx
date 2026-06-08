@@ -7,7 +7,8 @@ import { updateTournament, advanceTournamentStatus } from "@/services/tournament
 import { generateGroups, addPlayerToGroupLiveWithPlayers, fillGroupWithByes, removePlayerFromGroupWithMatches, withdrawPlayerFromGroup, deleteGroup, assignJudge, removeJudge, getGroups } from "@/services/groupService";
 import { buildTournamentExportSnapshot, downloadTournamentJson } from "@/services/tournamentExportService";
 import { generateGroupMatches, generateKnockoutBracket } from "@/services/matchService";
-import { computeGlobalStandings, getQualifiers, computeGroupStandings, autoQualifiersCount } from "@/services/standingsService";
+import { computeGlobalStandings, getQualifiers, computeGroupStandings, autoQualifiersCount, getQualifierBracketOptions } from "@/services/standingsService";
+import PlayerRegistrationForm from "@/components/PlayerRegistrationForm";
 import { getAllUsers } from "@/services/authService";
 import { TournamentStepper } from "@/components/ui/TournamentStepper";
 import { StatusBadge } from "@/components/ui/Badges";
@@ -52,8 +53,10 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const [staffUsers, setStaffUsers] = useState<AppUser[]>([]);
   const [showStepper, setShowStepper] = useState(false);
   const [showAddPlayers, setShowAddPlayers] = useState(false);
+  const [showCreatePlayer, setShowCreatePlayer] = useState(false);
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn>>({});
   const [selectedQualifiers, setSelectedQualifiers] = useState<number>(0);
+  const [selectedFinalScore, setSelectedFinalScore] = useState<number>(0);
   const [matchGroupFilter, setMatchGroupFilter] = useState<string>("all");
 
   const userCommunityIds = useMemo(() => {
@@ -90,6 +93,16 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
     return subscribeCheckIns(tournamentId, setCheckIns);
   }, [tournamentId]);
 
+  useEffect(() => {
+    if (!tournament) return;
+    if (tournament.qualifiersCount > 0 && selectedQualifiers === 0) {
+      setSelectedQualifiers(tournament.qualifiersCount);
+    }
+    if ((tournament.finalMatchScore === 4 || tournament.finalMatchScore === 7) && selectedFinalScore === 0) {
+      setSelectedFinalScore(tournament.finalMatchScore);
+    }
+  }, [tournament?.qualifiersCount, tournament?.finalMatchScore, tournament?.id, selectedQualifiers, selectedFinalScore]);
+
   if (loading) return <Spinner size={12} />;
   if (!tournament) return <div className="page-wrapper"><p className="text-gray-400">{t("tournamentNotFound")}</p></div>;
 
@@ -97,6 +110,18 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const knockoutMatches = matches.filter((m) => m.phase !== "GROUP");
   const globalStandings = computeGlobalStandings(groups, matches, players);
   const autoCount = autoQualifiersCount(globalStandings.length);
+  const qualifierOptions = getQualifierBracketOptions(globalStandings.length);
+  const knockoutHasNoScores = tournament.status === "KNOCKOUT"
+    && knockoutMatches.length > 0
+    && knockoutMatches.every((m) => !m.isFinished && m.playerAScore === 0 && m.playerBScore === 0);
+  const effectiveQualifiers = selectedQualifiers > 0
+    ? selectedQualifiers
+    : tournament.qualifiersCount > 0
+      ? tournament.qualifiersCount
+      : autoCount;
+  const effectiveFinalScore = selectedFinalScore > 0
+    ? selectedFinalScore
+    : tournament.finalMatchScore ?? 4;
 
   const run = async (fn: () => Promise<void>) => {
     setWorking(true);
@@ -135,7 +160,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
         }
       }
       if (next === "KNOCKOUT") {
-        const qualifyCount = selectedQualifiers || autoQualifiersCount(globalStandings.length);
+        const qualifyCount = effectiveQualifiers;
         await updateTournament(tournamentId, { qualifiersCount: qualifyCount });
         const qualifiers = getQualifiers(globalStandings, qualifyCount, players);
         await generateKnockoutBracket(tournamentId, qualifiers);
@@ -306,11 +331,25 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
           {/* Añadir jugadores — acordeón en móvil */}
           {isStaff && OPEN_REG.includes(tournament.status) && (
             <div className="card overflow-hidden">
-              <button onClick={() => setShowAddPlayers(!showAddPlayers)}
-                className="w-full flex items-center justify-between px-4 py-3">
-                <span className="font-gaming text-xs tracking-widest text-white">➕ {t("addPlayers")}</span>
-                <span className="text-white text-xs">{showAddPlayers ? "▲" : "▼"}</span>
-              </button>
+              <div className="px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <button onClick={() => setShowAddPlayers(!showAddPlayers)}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 text-sm bg-white/5 text-white border border-white/10 rounded-lg py-2 px-3 hover:bg-white/10 transition-all">
+                  <span>{showAddPlayers ? "✕" : "➕"}</span>
+                  <span>{showAddPlayers ? t("hidePlayers") : t("addPlayers")}</span>
+                </button>
+                <button onClick={() => setShowCreatePlayer(!showCreatePlayer)}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 text-sm bg-cyan-500/15 text-cyan-200 border border-cyan-500/30 rounded-lg py-2 px-3 hover:bg-cyan-500/20 transition-all">
+                  <span>{showCreatePlayer ? "✕" : "🧾"}</span>
+                  <span>{showCreatePlayer ? t("cancel") : "Registrar jugador nuevo"}</span>
+                </button>
+              </div>
+
+              {showCreatePlayer && (
+                <div className="px-4 pb-4 border-t border-white/5">
+                  <PlayerRegistrationForm tournamentId={tournamentId} onSuccess={() => setShowCreatePlayer(false)} />
+                </div>
+              )}
+
               {showAddPlayers && (
                 <div className="px-4 pb-4 space-y-3 border-t border-white/5">
                   <input type="text" value={enrollSearch} onChange={(e) => setEnrollSearch(e.target.value)}
@@ -337,26 +376,113 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
             </div>
           )}
 
-          {isAdmin && tournament.status === "GROUP_STAGE" && (
+          {canAdvancePhase && tournament.status === "GROUP_STAGE" && (
             <div className="card p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="section-title mb-0 text-xs">🏆 Clasificados al Knockout</p>
                 <span className="text-xs text-white/50 font-gaming">{globalStandings.length} en ranking</span>
               </div>
+              <div className="flex items-center justify-between">
+                <p className="section-title mb-0 text-xs">🎯 Final a puntos</p>
+                <span className="text-xs text-white/50 font-gaming">{effectiveFinalScore} pts</span>
+              </div>
               <div className="flex gap-1 flex-wrap">
-                {[4, 8, 16, 32, 64, 128].filter((n) => n <= globalStandings.length).map((n) => (
+                {[4, 7].map((n) => (
+                  <button key={n} onClick={() => setSelectedFinalScore(n)}
+                    className={`flex-1 py-1.5 rounded-lg font-gaming text-xs border transition-all min-w-fit px-2
+                      ${effectiveFinalScore === n
+                        ? "bg-amber-500/20 border-amber-500/30 text-amber-300"
+                        : "bg-white/5 border-white/10 text-white hover:bg-white/10"}`}>
+                    {n} pts
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-xs text-white/50 text-center sm:text-left">
+                  Ajusta la puntuación de la final antes de iniciar el bracket.
+                </p>
+                <button
+                  onClick={() => run(async () => {
+                    await updateTournament(tournamentId, { finalMatchScore: effectiveFinalScore });
+                    setNotice(`Final ajustada a ${effectiveFinalScore} puntos.`);
+                  })}
+                  disabled={working || (selectedFinalScore > 0 && selectedFinalScore === tournament.finalMatchScore)}
+                  className="btn-primary text-xs py-2 px-3 w-full sm:w-auto"
+                >
+                  Guardar final
+                </button>
+              </div>
+              <div className="border-t border-white/5 pt-3">
+                <div className="flex items-center justify-between">
+                  <p className="section-title mb-0 text-xs">🏆 Clasificados al Knockout</p>
+                  <span className="text-xs text-white/50 font-gaming">{globalStandings.length} en ranking</span>
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {qualifierOptions.map((n) => (
+                    <button key={n} onClick={() => setSelectedQualifiers(n)}
+                      className={`flex-1 py-1.5 rounded-lg font-gaming text-xs border transition-all min-w-fit px-2
+                        ${effectiveQualifiers === n
+                          ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
+                          : "bg-white/5 border-white/10 text-white hover:bg-white/10"}`}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <p className="text-xs text-white/50 text-center sm:text-left">
+                    Clasifican los top <span className="text-cyan-400 font-gaming font-bold">{effectiveQualifiers}</span> del ranking global
+                  </p>
+                  <button
+                    onClick={() => run(async () => {
+                      if (!qualifierOptions.includes(effectiveQualifiers)) throw new Error("Cantidad de clasificados inválida.");
+                      await updateTournament(tournamentId, { qualifiersCount: effectiveQualifiers });
+                      setNotice(`Se guardarán ${effectiveQualifiers} clasificad${effectiveQualifiers === 1 ? "o" : "os"}.`);
+                    })}
+                    disabled={working || (selectedQualifiers > 0 && selectedQualifiers === tournament.qualifiersCount)}
+                    className="btn-primary text-xs py-2 px-3 w-full sm:w-auto"
+                  >
+                    Guardar clasificación
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {canAdvancePhase && knockoutHasNoScores && (
+            <div className="card p-4 space-y-3 border-yellow-400/20 bg-yellow-950/10">
+              <div className="flex items-center justify-between">
+                <p className="section-title mb-0 text-xs">🔄 Cambiar tamaño de Knockout</p>
+                <span className="text-xs text-white/50 font-gaming">{knockoutMatches.length} partidos sin puntaje</span>
+              </div>
+              <div className="flex gap-1 flex-wrap">
+                {qualifierOptions.map((n) => (
                   <button key={n} onClick={() => setSelectedQualifiers(n)}
                     className={`flex-1 py-1.5 rounded-lg font-gaming text-xs border transition-all min-w-fit px-2
-                      ${(selectedQualifiers || autoQualifiersCount(globalStandings.length)) === n
-                        ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
+                      ${effectiveQualifiers === n
+                        ? "bg-amber-500/20 border-amber-500/30 text-amber-300"
                         : "bg-white/5 border-white/10 text-white hover:bg-white/10"}`}>
                     {n}
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-white/50 text-center">
-                Clasifican los top <span className="text-cyan-400 font-gaming font-bold">{selectedQualifiers || autoQualifiersCount(globalStandings.length)}</span> del ranking global
-              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-xs text-white/50 text-center sm:text-left">
+                  Se regenerará el bracket con los top <span className="text-amber-300 font-gaming font-bold">{effectiveQualifiers}</span> del ranking global.
+                </p>
+                <button
+                  onClick={() => run(async () => {
+                    if (!qualifierOptions.includes(effectiveQualifiers)) throw new Error("Cantidad de clasificados inválida.");
+                    await updateTournament(tournamentId, { qualifiersCount: effectiveQualifiers });
+                    const qualifiers = getQualifiers(globalStandings, effectiveQualifiers, players);
+                    await generateKnockoutBracket(tournamentId, qualifiers);
+                    setNotice(`Bracket regenerado con ${effectiveQualifiers} clasificad${effectiveQualifiers === 1 ? "o" : "os"}.`);
+                  })}
+                  disabled={working || (selectedQualifiers > 0 && selectedQualifiers === tournament.qualifiersCount)}
+                  className="btn-primary text-xs py-2 px-3 w-full sm:w-auto"
+                >
+                  Regenerar bracket
+                </button>
+              </div>
             </div>
           )}
 

@@ -1309,6 +1309,9 @@ video {
   --tw-border-opacity: 1;
   border-color: rgb(250 204 21 / var(--tw-border-opacity, 1));
 }
+.border-yellow-400\/20 {
+  border-color: rgb(250 204 21 / 0.2);
+}
 .border-yellow-500\/20 {
   border-color: rgb(234 179 8 / 0.2);
 }
@@ -1549,6 +1552,9 @@ video {
 .bg-slate-950\/50 {
   background-color: rgb(2 6 23 / 0.5);
 }
+.bg-slate-950\/95 {
+  background-color: rgb(2 6 23 / 0.95);
+}
 .bg-white {
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
@@ -1568,6 +1574,9 @@ video {
 .bg-yellow-900 {
   --tw-bg-opacity: 1;
   background-color: rgb(113 63 18 / var(--tw-bg-opacity, 1));
+}
+.bg-yellow-950\/10 {
+  background-color: rgb(66 32 6 / 0.1);
 }
 .bg-gradient-to-br {
   background-image: linear-gradient(to bottom right, var(--tw-gradient-stops));
@@ -1793,6 +1802,9 @@ video {
   font-size: 3rem;
   line-height: 1;
 }
+.text-\[0\.65rem\] {
+  font-size: 0.65rem;
+}
 .text-\[10px\] {
   font-size: 10px;
 }
@@ -1912,6 +1924,10 @@ video {
 .text-blue-500 {
   --tw-text-opacity: 1;
   color: rgb(59 130 246 / var(--tw-text-opacity, 1));
+}
+.text-cyan-200 {
+  --tw-text-opacity: 1;
+  color: rgb(165 243 252 / var(--tw-text-opacity, 1));
 }
 .text-cyan-300 {
   --tw-text-opacity: 1;
@@ -2255,31 +2271,32 @@ h1, h2, h3, h4, p, span, li, label, a {
 
 /* Reusable design tokens */
 .card {
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.78);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.9rem;
 }
 
 .card-cyan {
-  border-color: rgba(34, 211, 238, 0.2);
-  box-shadow: 0 0 20px rgba(34, 211, 238, 0.06);
+  border-color: rgba(34, 211, 238, 0.22);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.08);
 }
 
 .card-purple {
-  border-color: rgba(168, 85, 247, 0.2);
-  box-shadow: 0 0 20px rgba(168, 85, 247, 0.06);
+  border-color: rgba(168, 85, 247, 0.22);
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.08);
 }
 
 .input-base {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 0.75rem;
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 0.95rem;
   color: #f1f5f9;
   width: 100%;
   transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
+  font-size: 0.95rem;
 }
 .input-base::-moz-placeholder { color: rgba(148, 163, 184, 0.7); }
 .input-base::placeholder { color: rgba(148, 163, 184, 0.7); }
@@ -2294,28 +2311,30 @@ h1, h2, h3, h4, p, span, li, label, a {
   border: 1px solid rgba(34, 211, 238, 0.35);
   color: #67e8f9;
   font-weight: 700;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
+  padding: 0.65rem 1.2rem;
+  border-radius: 0.8rem;
   transition: all 0.2s;
   cursor: pointer;
   white-space: nowrap;
+  font-size: 0.9rem;
 }
 .btn-primary:hover:not(:disabled) {
   background: rgba(34, 211, 238, 0.2);
   border-color: rgba(34, 211, 238, 0.6);
-  box-shadow: 0 0 16px rgba(34, 211, 238, 0.15);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.12);
 }
-.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .btn-ghost {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: rgba(156, 163, 175, 1);
   font-weight: 600;
-  padding: 0.75rem 1.25rem;
-  border-radius: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.8rem;
   transition: all 0.2s;
   cursor: pointer;
+  font-size: 0.9rem;
 }
 .btn-ghost:hover { background: rgba(255, 255, 255, 0.08); color: white; }
 
@@ -2324,11 +2343,11 @@ h1, h2, h3, h4, p, span, li, label, a {
   border: 1px solid rgba(239, 68, 68, 0.25);
   color: rgba(252, 165, 165, 1);
   font-weight: 600;
-  padding: 0.375rem 0.875rem;
-  border-radius: 0.5rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 0.6rem;
   transition: all 0.2s;
   cursor: pointer;
-  font-size: 0.8125rem;
+  font-size: 0.8rem;
 }
 .btn-danger:hover { background: rgba(239, 68, 68, 0.16); border-color: rgba(239, 68, 68, 0.5); }
 
@@ -2337,11 +2356,11 @@ h1, h2, h3, h4, p, span, li, label, a {
   border: 1px solid rgba(245, 158, 11, 0.25);
   color: rgba(252, 211, 77, 1);
   font-weight: 600;
-  padding: 0.375rem 0.875rem;
-  border-radius: 0.5rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 0.6rem;
   transition: all 0.2s;
   cursor: pointer;
-  font-size: 0.8125rem;
+  font-size: 0.8rem;
 }
 .btn-warning:hover { background: rgba(245, 158, 11, 0.16); border-color: rgba(245, 158, 11, 0.5); }
 
@@ -2351,13 +2370,13 @@ h1, h2, h3, h4, p, span, li, label, a {
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: #ffffff;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .divider-cyan {
   height: 1px;
   background: linear-gradient(to right, transparent, rgba(34, 211, 238, 0.4), transparent);
-  margin: 0.5rem 0;
+  margin: 0.4rem 0;
 }
 
 .bg-grid {
@@ -2369,7 +2388,7 @@ h1, h2, h3, h4, p, span, li, label, a {
 
 .page-wrapper {
   min-height: calc(100vh - 65px);
-  padding: 2.5rem 1rem;
+  padding: 1.5rem 0.75rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2377,10 +2396,20 @@ h1, h2, h3, h4, p, span, li, label, a {
 
 .page-content {
   width: 100%;
-  max-width: 640px;
+  max-width: 760px;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .page-wrapper {
+    padding: 2rem 1.5rem;
+  }
+
+  .card {
+    border-radius: 1rem;
+  }
 }
 
 .hover\:-translate-y-0\.5:hover {
@@ -2870,6 +2899,10 @@ h1, h2, h3, h4, p, span, li, label, a {
 
   .sm\:pt-6 {
     padding-top: 1.5rem;
+  }
+
+  .sm\:text-left {
+    text-align: left;
   }
 
   .sm\:text-2xl {

@@ -112,7 +112,7 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
   const phases = PHASE_ORDER.filter((p) => matches.some((m) => m.phase === p));
 
   if (phases.length === 0) return (
-    <div className="card p-10 text-center">
+    <div className="card p-6 text-center">
       <p className="text-4xl mb-3">⚔️</p>
       <p className="text-white font-semibold">Bracket not generated yet</p>
     </div>

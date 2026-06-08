@@ -274,6 +274,9 @@ export const updateMatchScore = async (
     // Verificar que el torneo no haya avanzado de fase
     const { getDoc: gd, getDocs: gds, collection: col, query: q, where: w } = await import("firebase/firestore");
     const tournSnap = await gd(doc(db, "tournaments", tournamentId));
+    const finalMatchScore = tournSnap.exists()
+      ? (tournSnap.data().finalMatchScore as number | undefined)
+      : undefined;
     if (tournSnap.exists()) {
       const status = tournSnap.data().status;
       // Torneo finalizado — todo bloqueado
@@ -325,11 +328,15 @@ export const updateMatchScore = async (
       recordedByUid: callerUid,
     };
 
+    const winningScore = data.phase === "FINAL"
+      ? (finalMatchScore ?? WINNING_SCORE)
+      : WINNING_SCORE;
+
     const update: Record<string, unknown> = {
       [field]: newScore,
       history: arrayUnion(eventPayload),
     };
-    if (newScore >= WINNING_SCORE) {
+    if (newScore >= winningScore) {
       update.isFinished = true;
       update.winnerId = playerId;
       update.lockedBy = null;

@@ -28,6 +28,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <MaintenanceGate>
               {children}
             </MaintenanceGate>
+            <footer className="w-full border-t border-white/10 bg-slate-950/95 text-center py-4 text-xs text-white/60">
+              <p>
+                Soporte: <a href="mailto:soportebeymatch@gmail.com" className="text-cyan-300 hover:underline">soportebeymatch@gmail.com</a>
+              </p>
+            </footer>
             <OfflineBanner />
           </AuthProvider>
         </LangProvider>

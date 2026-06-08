@@ -18,6 +18,7 @@ export const createTournament = async (
     eventType: data.eventType,
     communityId: data.communityId ?? null,
     qualifiersCount: 0,
+    finalMatchScore: 4,
     status: "DRAFT" as TournamentStatus,
     createdBy: uid,
     createdAt: serverTimestamp(),

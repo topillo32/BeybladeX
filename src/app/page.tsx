@@ -26,7 +26,7 @@ export default function RootPage() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/3 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-slate-500/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -43,12 +43,12 @@ export default function RootPage() {
         </div>
 
         <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
-          <Link href="/auth" className="card border-blue-500/20 bg-blue-600/5 p-5 flex flex-col items-center gap-2 hover:border-blue-400/40 transition-all group col-span-1 sm:col-span-2">
+          <Link href="/auth" className="card border-blue-500/20 bg-blue-600/5 p-4 flex flex-col items-center gap-2 hover:border-blue-400/40 transition-all group col-span-1 sm:col-span-2">
             <span className="text-3xl">⚔️</span>
             <p className="font-gaming text-sm font-bold tracking-widest text-blue-400 group-hover:text-blue-300 transition-colors">{t("signIn").toUpperCase()}</p>
             <p className="text-gray-400 text-xs">{t("adminAccess")}</p>
           </Link>
-          <Link href="/t" className="card border-slate-500/20 bg-slate-500/5 p-5 flex flex-col items-center gap-2 hover:border-slate-400/40 transition-all group">
+          <Link href="/t" className="card border-slate-500/20 bg-slate-500/5 p-4 flex flex-col items-center gap-2 hover:border-slate-400/40 transition-all group">
             <span className="text-3xl">📺</span>
             <p className="font-gaming text-sm font-bold tracking-widest text-slate-300 group-hover:text-white transition-colors">{t("watch")}</p>
             <p className="text-gray-400 text-xs">{t("liveResults")}</p>

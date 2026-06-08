@@ -1,10 +1,12 @@
 {
-  "/(admin)/leagues/page": "app/(admin)/leagues/page.js",
-  "/(admin)/tournaments/[tournamentId]/page": "app/(admin)/tournaments/[tournamentId]/page.js",
-  "/(admin)/leagues/[leagueId]/page": "app/(admin)/leagues/[leagueId]/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/(admin)/users/page": "app/(admin)/users/page.js",
+  "/(admin)/players/page": "app/(admin)/players/page.js",
+  "/(admin)/setup/page": "app/(admin)/setup/page.js",
+  "/(admin)/parts/page": "app/(admin)/parts/page.js",
+  "/(admin)/communities/page": "app/(admin)/communities/page.js",
+  "/(admin)/mi-staff/page": "app/(admin)/mi-staff/page.js",
   "/(admin)/dashboard/page": "app/(admin)/dashboard/page.js",
   "/(admin)/tournaments/page": "app/(admin)/tournaments/page.js",
-  "/(admin)/setup/page": "app/(admin)/setup/page.js",
-  "/(admin)/communities/page": "app/(admin)/communities/page.js",
-  "/(admin)/users/page": "app/(admin)/users/page.js"
+  "/(admin)/leagues/page": "app/(admin)/leagues/page.js"
 }

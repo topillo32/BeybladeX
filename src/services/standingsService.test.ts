@@ -3,10 +3,11 @@ import { autoQualifiersCount, computeGroupStandings } from "./standingsService";
 import type { Match, Player } from "../types";
 
 describe("autoQualifiersCount", () => {
-  it("elige la potencia de 2 más alta que no supera el total", () => {
+  it("elige la potencia de 2 más alta menor que el total de jugadores", () => {
     expect(autoQualifiersCount(10)).toBe(8);
-    expect(autoQualifiersCount(64)).toBe(64);
-    expect(autoQualifiersCount(3)).toBe(8);
+    expect(autoQualifiersCount(32)).toBe(16);
+    expect(autoQualifiersCount(64)).toBe(32);
+    expect(autoQualifiersCount(3)).toBe(2);
   });
 });
 

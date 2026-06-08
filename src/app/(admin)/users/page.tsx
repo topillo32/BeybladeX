@@ -75,19 +75,21 @@ export default function UsersPage() {
         <div className="card overflow-hidden">
           <ul className="divide-y divide-white/5">
             {paginatedUsers.map((u) => (
-              <li key={u.uid} className="flex items-center justify-between px-4 py-3.5 hover:bg-white/3 transition-colors gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-white truncate text-sm">{u.displayName}</p>
-                  <p className="text-white/50 text-xs truncate hidden sm:block">{u.email}</p>
+              <li key={u.uid} className="flex flex-col sm:flex-row sm:items-center justify-between px-3 py-2.5 hover:bg-white/3 transition-colors gap-2">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <p className="font-medium text-white truncate text-xs sm:text-sm">{u.displayName || u.email || u.uid}</p>
+                  {u.displayName ? (
+                    <p className="text-white/50 text-[0.65rem] truncate hidden sm:block">{u.email}</p>
+                  ) : null}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-1 shrink-0">
                   {/* Disponibilidad como juez — solo staff/admin */}
                   {(u.role === "staff" || u.role === "admin") && (
                     <button
                       onClick={() => handleJudgeAvailability(u.uid, !u.availableAsJudge)}
                       disabled={updating === u.uid}
                       title={u.availableAsJudge ? "Disponible como juez" : "No disponible como juez"}
-                      className={`text-xs font-gaming px-2 py-1 rounded-lg border transition-all ${
+                      className={`text-[0.65rem] font-gaming px-2 py-1 rounded-lg border transition-all ${
                         u.availableAsJudge
                           ? "text-green-400 border-green-500/30 bg-green-500/10 hover:bg-green-500/20"
                           : "text-white/30 border-white/10 bg-white/5 hover:bg-white/10"
@@ -100,7 +102,7 @@ export default function UsersPage() {
                     value={u.role}
                     disabled={updating === u.uid}
                     onChange={(e) => handleRoleChange(u.uid, e.target.value as UserRole)}
-                    className="bg-white/5 border border-white/10 text-white text-xs font-gaming rounded-lg px-2 py-1.5 outline-none focus:border-cyan-500/50 disabled:opacity-50 cursor-pointer"
+                    className="bg-white/5 border border-white/10 text-white text-[0.65rem] font-gaming rounded-lg px-2 py-1 outline-none focus:border-cyan-500/50 disabled:opacity-50 cursor-pointer"
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r} className="bg-[#050d1a]">{r}</option>
@@ -110,7 +112,7 @@ export default function UsersPage() {
                     value={u.communityId || ""}
                     disabled={updating === u.uid}
                     onChange={(e) => handleCommunityChange(u.uid, e.target.value)}
-                    className="bg-white/5 border border-white/10 text-white text-xs font-gaming rounded-lg px-2 py-1.5 outline-none focus:border-cyan-500/50 disabled:opacity-50 cursor-pointer"
+                    className="bg-white/5 border border-white/10 text-white text-[0.65rem] font-gaming rounded-lg px-2 py-1 outline-none focus:border-cyan-500/50 disabled:opacity-50 cursor-pointer"
                   >
                     <option value="">Sin comunidad</option>
                     {communities.map((community) => (

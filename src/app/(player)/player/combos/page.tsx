@@ -51,7 +51,7 @@ export default function PlayerCombosPage() {
         </div>
 
         {!selectedTournamentId ? (
-          <div className="card p-10 text-center">
+          <div className="card p-6 text-center">
             <p className="text-4xl mb-3">🌀</p>
             <p className="text-white font-semibold">Selecciona un torneo para ver tus combos</p>
           </div>

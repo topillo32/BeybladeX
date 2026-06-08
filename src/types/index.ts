@@ -65,6 +65,7 @@ export interface Tournament {
   maxPlayers: number;
   playersPerGroup: number;
   qualifiersCount: number;
+  finalMatchScore?: 4 | 7;
   registeredPlayerNames?: string[]; // public snapshot — updated on enroll/unenroll
   createdBy: string;
   createdAt: Timestamp;

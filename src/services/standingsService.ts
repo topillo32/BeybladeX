@@ -113,8 +113,14 @@ export const getQualifiers = (standings: StandingEntry[], count: number, players
   return standings.slice(0, count).map((s) => players.find((p) => p.id === s.playerId)!).filter(Boolean);
 };
 
-/** Calcula cuántos clasifican: la potencia de 2 más cercana hacia abajo (8, 16, 32, 64, 128) */
+const QUALIFIER_BRACKETS = [128, 64, 32, 16, 8, 4, 2];
+
+export const getQualifierBracketOptions = (totalPlayers: number): number[] => {
+  if (totalPlayers <= 2) return [2];
+  return QUALIFIER_BRACKETS.filter((n) => n < totalPlayers);
+};
+
+/** Calcula cuántos clasifican: la mayor potencia de 2 menor que el total de jugadores */
 export const autoQualifiersCount = (totalPlayers: number): number => {
-  const BRACKETS = [128, 64, 32, 16, 8];
-  return BRACKETS.find((n) => n <= totalPlayers) ?? 8;
+  return getQualifierBracketOptions(totalPlayers)[0] ?? 2;
 };

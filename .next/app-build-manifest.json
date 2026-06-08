@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/(admin)/tournaments/[tournamentId]/page": [
+    "/(admin)/users/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/tournaments/[tournamentId]/page.js"
+      "static/chunks/app/(admin)/users/page.js"
     ],
     "/(admin)/layout": [
       "static/chunks/webpack.js",
@@ -16,6 +16,36 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
+    "/(admin)/players/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/players/page.js"
+    ],
+    "/(admin)/setup/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/setup/page.js"
+    ],
+    "/(admin)/parts/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/parts/page.js"
+    ],
+    "/(admin)/communities/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/communities/page.js"
+    ],
+    "/(admin)/mi-staff/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/mi-staff/page.js"
+    ],
+    "/(admin)/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(admin)/dashboard/page.js"
+    ],
     "/(admin)/tournaments/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -26,30 +56,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(admin)/leagues/page.js"
     ],
-    "/(admin)/leagues/[leagueId]/page": [
+    "/_not-found/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/leagues/[leagueId]/page.js"
-    ],
-    "/(admin)/dashboard/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/dashboard/page.js"
-    ],
-    "/(admin)/communities/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/communities/page.js"
-    ],
-    "/(admin)/setup/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/setup/page.js"
-    ],
-    "/(admin)/users/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(admin)/users/page.js"
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }
