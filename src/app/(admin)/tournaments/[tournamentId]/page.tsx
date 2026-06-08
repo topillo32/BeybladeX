@@ -56,7 +56,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
   const [showCreatePlayer, setShowCreatePlayer] = useState(false);
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn>>({});
   const [selectedQualifiers, setSelectedQualifiers] = useState<number>(0);
-  const [selectedFinalScore, setSelectedFinalScore] = useState<number>(0);
+  const [selectedFinalScore, setSelectedFinalScore] = useState<0 | 4 | 7>(0);
   const [matchGroupFilter, setMatchGroupFilter] = useState<string>("all");
 
   const userCommunityIds = useMemo(() => {
@@ -119,8 +119,8 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
     : tournament.qualifiersCount > 0
       ? tournament.qualifiersCount
       : autoCount;
-  const effectiveFinalScore = selectedFinalScore > 0
-    ? selectedFinalScore
+  const effectiveFinalScore: 4 | 7 = selectedFinalScore > 0
+    ? (selectedFinalScore as 4 | 7)
     : tournament.finalMatchScore ?? 4;
 
   const run = async (fn: () => Promise<void>) => {
@@ -387,7 +387,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                 <span className="text-xs text-white/50 font-gaming">{effectiveFinalScore} pts</span>
               </div>
               <div className="flex gap-1 flex-wrap">
-                {[4, 7].map((n) => (
+                {([4, 7] as const).map((n) => (
                   <button key={n} onClick={() => setSelectedFinalScore(n)}
                     className={`flex-1 py-1.5 rounded-lg font-gaming text-xs border transition-all min-w-fit px-2
                       ${effectiveFinalScore === n

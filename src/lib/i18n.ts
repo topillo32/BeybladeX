@@ -69,6 +69,7 @@ export const translations = {
 
     // Players panel in tournament
     addPlayers: "Add players to tournament",
+    hidePlayers: "Hide players",
     searchPlayer: "Search player...",
     noPlayersAvailable: "No players available",
     enroll: "Enroll",
@@ -233,6 +234,7 @@ export const translations = {
 
     // Players panel in tournament
     addPlayers: "Añadir jugadores al torneo",
+    hidePlayers: "Ocultar jugadores",
     searchPlayer: "Buscar jugador...",
     noPlayersAvailable: "No hay jugadores disponibles",
     enroll: "Inscribir",
