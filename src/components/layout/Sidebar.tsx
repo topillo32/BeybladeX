@@ -24,7 +24,7 @@ export const Sidebar = () => {
     { href: "/mi-staff",    label: "Mi Staff",        icon: "👥" },
     { href: "/communities", label: "Comunidades",    icon: "🏘️" },
     { href: "/players",     label: t("players"),     icon: "👤" },
-    { href: "/parts",       label: "Piezas",         icon: "⚙️" },
+    // { href: "/parts",       label: "Piezas",         icon: "⚙️" },
     { href: "/users",       label: t("users"),       icon: "🛡️" },
     { href: "/setup",       label: "Setup",          icon: "⚙️" },
   ];
@@ -34,12 +34,12 @@ export const Sidebar = () => {
     { href: "/leagues",     label: t("leagues"),     icon: "🏅" },
     { href: "/mi-staff",    label: "Mi Staff",        icon: "👥" },
     { href: "/players",     label: t("players"),     icon: "👤" },
-    { href: "/parts",       label: "Piezas",         icon: "⚙️" },
+    // { href: "/parts",       label: "Piezas",         icon: "⚙️" },
   ];
   const NAV_PLAYER = [
     { href: "/player/tournaments", label: t("availableTournaments"), icon: "🏆" },
     { href: "/player/leagues",     label: t("myLeagues"),            icon: "🏅" },
-    { href: "/player/combos",      label: "Mis Combos",              icon: "🌀" },
+    // { href: "/player/combos",      label: "Mis Combos",              icon: "🌀" },
   ];
 
   const isStaffOrLeader = user?.role === "staff" || user?.role === "leader";

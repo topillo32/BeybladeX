@@ -7,14 +7,18 @@ const col = collection(db, "comboHistory");
 export const createComboHistory = async (
   data: Omit<ComboHistory, "id" | "changedAt"> & { changedBy: string }
 ): Promise<string> => {
+  /*
   const ref = await addDoc(col, { ...data, changedAt: serverTimestamp() });
   return ref.id;
+  */
+  return "mock-id";
 };
 
 export const getComboHistoryByPlayer = async (
   playerId: string,
   tournamentId: string
 ): Promise<ComboHistory[]> => {
+  /*
   const snap = await getDocs(
     query(col,
       where("playerId", "==", playerId),
@@ -23,6 +27,8 @@ export const getComboHistoryByPlayer = async (
     )
   );
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as ComboHistory));
+  */
+  return [];
 };
 
 export const getLatestComboBySlot = async (
@@ -30,6 +36,7 @@ export const getLatestComboBySlot = async (
   tournamentId: string,
   slot: 1 | 2 | 3
 ): Promise<ComboHistory | null> => {
+  /*
   const snap = await getDocs(
     query(col,
       where("playerId", "==", playerId),
@@ -41,4 +48,6 @@ export const getLatestComboBySlot = async (
   );
   if (snap.empty) return null;
   return { id: snap.docs[0].id, ...snap.docs[0].data() } as ComboHistory;
+  */
+  return null;
 };

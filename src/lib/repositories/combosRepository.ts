@@ -9,6 +9,7 @@ export const createOrUpdateCombo = async (
   combo: Omit<Combo, "id" | "createdAt" | "isActive">,
   changedBy: string
 ): Promise<string> => {
+  /*
   // Buscar si ya existe un combo activo en ese slot
   const existing = await getDocs(
     query(col,
@@ -32,9 +33,12 @@ export const createOrUpdateCombo = async (
   const id = `${combo.playerId}_${combo.tournamentId}_${combo.slot}`;
   await setDoc(doc(db, "combos", id), { ...combo, isActive: true, createdAt: serverTimestamp() });
   return id;
+  */
+  return "mock-id";
 };
 
 export const getPlayerCombos = async (playerId: string, tournamentId: string): Promise<Combo[]> => {
+  /*
   const snap = await getDocs(
     query(col,
       where("playerId", "==", playerId),
@@ -43,12 +47,17 @@ export const getPlayerCombos = async (playerId: string, tournamentId: string): P
     )
   );
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Combo));
+  */
+  return [];
 };
 
 export const validatePlayerCombos = async (
   playerId: string,
   tournamentId: string
 ): Promise<string | null> => {
+  /*
   const combos = await getPlayerCombos(playerId, tournamentId);
   return validatePlayerHasAllCombos(combos);
+  */
+  return null;
 };

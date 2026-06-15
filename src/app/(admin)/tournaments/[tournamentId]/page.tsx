@@ -337,11 +337,13 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                   <span>{showAddPlayers ? "✕" : "➕"}</span>
                   <span>{showAddPlayers ? t("hidePlayers") : t("addPlayers")}</span>
                 </button>
-                <button onClick={() => setShowCreatePlayer(!showCreatePlayer)}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 text-sm bg-cyan-500/15 text-cyan-200 border border-cyan-500/30 rounded-lg py-2 px-3 hover:bg-cyan-500/20 transition-all">
-                  <span>{showCreatePlayer ? "✕" : "🧾"}</span>
-                  <span>{showCreatePlayer ? t("cancel") : "Registrar jugador nuevo"}</span>
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <button onClick={() => setShowCreatePlayer(!showCreatePlayer)}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 text-sm bg-cyan-500/15 text-cyan-200 border border-cyan-500/30 rounded-lg py-2 px-3 hover:bg-cyan-500/20 transition-all">
+                    <span>{showCreatePlayer ? "✕" : "🧾"}</span>
+                    <span>{showCreatePlayer ? t("cancel") : "Registrar jugador nuevo"}</span>
+                  </button>
+                </div>
               </div>
 
               {showCreatePlayer && (
@@ -639,7 +641,7 @@ export default function TournamentDetailPage({ params }: { params: { tournamentI
                   const slots = tournament.playersPerGroup - g.playerIds.length;
                   const realPlayerCount = g.playerIds.filter((id) => !id.startsWith("bye-")).length;
                   const canDelete = isAdmin && realPlayerCount === 0;
-                  const canFill = isAdmin && slots > 0 && byeCount < 3;
+                  const canFill = (isAdmin || user?.role === "leader") && slots > 0 && byeCount < 3;
                   const eligibleJudges = staffUsers.filter((u) => {
                     if (u.role !== "staff" && u.role !== "admin" && u.role !== "leader") return false;
                     if (u.role !== "leader" && u.availableAsJudge !== true) return false;

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { Match, FinishType } from "@/types";
 import { FINISH_TYPES } from "@/types";
-import { updateMatchScore, undoLastScore, advanceKnockoutRound, lockMatch, unlockMatch, createScoreEventId } from "@/services/matchService";
+import { updateMatchScore, undoLastScore, advanceKnockoutRound, lockMatch, unlockMatch, createScoreEventId, LOCK_TTL_MS } from "@/services/matchService";
 import { useLockHeartbeat } from "@/hooks/useLockHeartbeat";
 
 interface Props {
@@ -40,6 +40,7 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
   const [advancing, setAdvancing] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
+  const [hasLock, setHasLock] = useState(false);
 
   const handleAdvanceRound = async (phaseMatches: Match[]) => {
     setAdvancing(true);
@@ -50,7 +51,7 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
   // Sync activeMatch with live data from matches prop
   const liveMatch = activeMatch ? (matches.find((m) => m.id === activeMatch.id) ?? activeMatch) : null;
 
-  useLockHeartbeat(!!liveMatch && !!tournamentId, tournamentId, liveMatch?.id, callerUid, !!isAdmin);
+  useLockHeartbeat(hasLock, tournamentId, liveMatch?.id, callerUid);
 
   const handleScore = async (playerId: string, ft: FinishType) => {
     if (!liveMatch || submitting || !callerUid) return;
@@ -60,7 +61,7 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
       await updateMatchScore(tournamentId!, liveMatch.id, playerId, ft, callerUid, !!isAdmin, createScoreEventId());
     } catch (e: any) {
       setModalError(
-        e.message === "LOCK_REQUIRED" ? "Cierra y vuelve a abrir la partida."
+        e.message === "LOCK_REQUIRED" ? "Debes tomar el enfrentamiento antes de anotar."
           : e.message === "LOCK_EXPIRED" ? "El bloqueo expiró. Cierra y abre de nuevo."
           : e.message === "PHASE_LOCKED" ? "Esta fase ya no admite cambios."
           : "Error al anotar."
@@ -78,7 +79,7 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
       await undoLastScore(tournamentId!, liveMatch.id, callerUid, !!isAdmin);
     } catch (e: any) {
       setModalError(
-        e.message === "LOCK_REQUIRED" ? "Vuelve a abrir la partida para tomar el bloqueo."
+        e.message === "LOCK_REQUIRED" ? "Debes tomar el enfrentamiento para deshacer."
           : e.message === "LOCK_EXPIRED" ? "El bloqueo expiró. Cierra y abre de nuevo."
           : "Error al deshacer."
       );
@@ -87,26 +88,34 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
     }
   };
 
-  const openBracketModal = async (m: Match) => {
+  const openBracketModal = (m: Match) => {
     if (!editable || !tournamentId || !callerUid) return;
     setModalError(null);
     setListError(null);
+    setActiveMatch(m);
+  };
+
+  const takeLock = async () => {
+    if (!tournamentId || !activeMatch || !callerUid) return;
+    setSubmitting(true);
+    setModalError(null);
     try {
-      await lockMatch(tournamentId, m.id, callerUid, !!isAdmin);
-      setActiveMatch(m);
+      await lockMatch(tournamentId, activeMatch.id, callerUid, !!isAdmin);
+      setHasLock(true);
     } catch (e: any) {
-      const msg =
-        e.message === "LOCKED" ? "Otro juez ya tiene esta partida abierta."
-        : e.message === "NOT_JUDGE" ? "No eres el juez asignado (en grupos solo puede anotar el juez del grupo)."
-        : "No se pudo abrir la partida.";
-      setListError(msg);
+      if (e.message === "LOCKED") setModalError("Otro juez ya tiene esta partida abierta.");
+      else if (e.message === "NOT_JUDGE") setModalError("No eres el juez asignado.");
+      else setModalError("No se pudo tomar la partida.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const closeBracketModal = () => {
-    if (tournamentId && activeMatch && callerUid) void unlockMatch(tournamentId, activeMatch.id, callerUid);
+    if (tournamentId && activeMatch && callerUid && hasLock) void unlockMatch(tournamentId, activeMatch.id, callerUid);
     setActiveMatch(null);
     setModalError(null);
+    setHasLock(false);
   };
 
   const phases = PHASE_ORDER.filter((p) => matches.some((m) => m.phase === p));
@@ -159,8 +168,19 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
                 <div className="flex flex-col gap-3">
                   {phaseMatches.map((m) => {
                     const w = m.isFinished ? (m.winnerId === m.playerA.id ? m.playerA : m.playerB) : null;
+                    const isLockedByOther = !!(
+                      m.lockedBy && m.lockedBy !== callerUid &&
+                      m.lockedAt && (Date.now() - m.lockedAt) < LOCK_TTL_MS
+                    );
                     return (
                       <div key={m.id} className={`card p-4 space-y-3 ${m.isFinished ? "opacity-80" : "card-cyan"}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            {isLockedByOther && !m.isFinished && (
+                              <span className="text-xs font-gaming text-orange-400 border border-orange-500/30 bg-orange-500/10 px-2 py-0.5 rounded-full">🔒 En uso</span>
+                            )}
+                          </div>
+                        </div>
                         {[m.playerA, m.playerB].map((p, i) => {
                           const score = i === 0 ? m.playerAScore : m.playerBScore;
                           const isWinner = w?.id === p.id;
@@ -174,13 +194,16 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
                         {editable && tournamentId ? (
                           <button
                             onClick={() => void openBracketModal(m)}
+                            disabled={isLockedByOther}
                             className={`w-full text-sm font-gaming py-2 rounded-lg transition-all border ${
-                              m.isFinished
+                              isLockedByOther
+                                ? "text-orange-400 border-orange-500/30 bg-orange-500/10 cursor-not-allowed"
+                                : m.isFinished
                                 ? "text-gray-400 border-white/10 bg-white/3 hover:bg-white/8"
                                 : "text-cyan-400 border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20"
                             }`}
                           >
-                            {m.isFinished ? "✏️ Corregir" : "⚔️ Anotar"}
+                            {isLockedByOther ? "🔒 En uso" : m.isFinished ? "✏️ Corregir" : "⚔️ Anotar"}
                           </button>
                         ) : !m.isFinished && (
                           <span className="flex items-center justify-center gap-1.5 text-xs font-gaming text-amber-400">
@@ -257,8 +280,21 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
               </div>
             )}
 
-            {/* Score buttons — siempre visibles si editable (para corregir) */}
-            {!liveMatch.isFinished && (
+            {!liveMatch.isFinished && !hasLock && !isAdmin && (
+              <div className="card p-6 text-center space-y-4">
+                <p className="text-gray-300 font-gaming text-sm">Debes tomar el control de la partida para anotar.</p>
+                <button
+                  onClick={takeLock}
+                  disabled={submitting}
+                  className="btn-primary py-3 px-6 font-gaming text-sm w-full"
+                >
+                  🔒 Tomar Enfrentamiento
+                </button>
+              </div>
+            )}
+
+            {/* Score buttons */}
+            {!liveMatch.isFinished && (hasLock || isAdmin) && (
               <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 {[liveMatch.playerA, liveMatch.playerB].map((player, idx) => (
                   <div key={player.id} className="min-w-0 space-y-1.5 sm:space-y-2">
@@ -282,8 +318,8 @@ export const BracketView = ({ matches, tournamentId, editable, callerUid, isAdmi
               </div>
             )}
 
-            {/* Undo + history — disponible siempre que haya historial */}
-            {liveMatch.history?.length > 0 && (
+            {/* Undo + history */}
+            {liveMatch.history?.length > 0 && (hasLock || isAdmin) && (
               <div className="card overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-white/5 flex items-center justify-between">
                   <p className="section-title mb-0 text-xs">Historial</p>

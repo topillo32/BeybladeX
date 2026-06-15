@@ -8,7 +8,7 @@ import { updateMatchScore, undoLastScore, lockMatch, unlockMatch, createScoreEve
 import { useLockHeartbeat } from "@/hooks/useLockHeartbeat";
 import { useAuthContext } from "@/lib/AuthContext";
 import { Match, FINISH_TYPES, Player, FinishType } from "@/types";
-import { ComboVerifier } from "./ComboVerifier";
+// import { ComboVerifier } from "./ComboVerifier";
 import { ErrorToast } from "@/components/ui/ErrorToast";
 
 interface Props { tournamentId: string; matchId: string; inline?: boolean; }
@@ -64,34 +64,41 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [lockErr, setLockErr] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [hasLock, setHasLock] = useState(false);
   const router = useRouter();
   const uid = user?.uid;
 
-  useLockHeartbeat(!!match && !match.isFinished, tournamentId, matchId, uid, !!isAdmin);
+  useLockHeartbeat(hasLock, tournamentId, matchId, uid);
 
   useEffect(() => {
     if (match?.isFinished) setShowWinnerModal(true);
   }, [match?.isFinished]);
 
-  // Toma el lock al montar — solo bloquea la UI si hay otro juez activo
+  // Limpiar el lock al salir si lo tomamos
   useEffect(() => {
-    if (!uid || !matchId || !tournamentId) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        await lockMatch(tournamentId, matchId, uid, !!isAdmin);
-        if (!cancelled) setLockErr(null);
-      } catch (e: any) {
-        if (!cancelled && e.message === "LOCKED")
-          setLockErr("Esta partida está siendo anotada por otro juez en este momento.");
-        // Cualquier otro error se ignora — el servidor rechazará el punto si no corresponde
-      }
-    })();
     return () => {
-      cancelled = true;
-      void unlockMatch(tournamentId, matchId, uid);
+      if (hasLock && uid && tournamentId && matchId) {
+        void unlockMatch(tournamentId, matchId, uid);
+      }
     };
-  }, [uid, tournamentId, matchId]);
+  }, [hasLock, uid, tournamentId, matchId]);
+
+  const takeLock = async () => {
+    if (!uid || !matchId || !tournamentId) return;
+    setIsSubmitting(true);
+    setLockErr(null);
+    try {
+      await lockMatch(tournamentId, matchId, uid, !!isAdmin);
+      setHasLock(true);
+    } catch (e: any) {
+      if (e.message === "LOCKED")
+        setLockErr("Esta partida está siendo anotada por otro juez en este momento.");
+      else
+        setLockErr("No se pudo tomar el enfrentamiento.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleScore = async (playerId: string, finishType: FinishType) => {
     if (isSubmitting || match?.isFinished || !uid) return;
@@ -145,6 +152,11 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
 
   const MAX = 4;
 
+  const isLockedByOther = !!(
+    match && match.lockedBy && match.lockedBy !== uid &&
+    match.lockedAt && (Date.now() - match.lockedAt) < 300_000 // LOCK_TTL_MS
+  );
+
   return (
     <div className={inline ? "space-y-4" : "page-wrapper"}>
       <div className={inline ? "space-y-4" : "page-content"}>
@@ -156,9 +168,13 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
           </div>
         )}
 
-        {/* Aviso si otro juez tiene el lock — no bloquea la UI */}
-        {lockErr && (
-          <ErrorToast error={lockErr} onClose={() => setLockErr(null)} />
+        {/* Aviso si otro juez tiene el lock */}
+        {(lockErr || isLockedByOther) && !match.isFinished && (
+          <div className="card border-orange-500/30 bg-orange-500/10 p-4 text-center space-y-2">
+            <p className="text-3xl">🔒</p>
+            <p className="text-orange-400 font-gaming text-sm">ENFRENTAMIENTO EN USO</p>
+            <p className="text-orange-300 text-xs">Otro juez está anotando esta partida en este momento.</p>
+          </div>
         )}
 
         {/* Modal ganador */}
@@ -183,12 +199,14 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
 
         {actionError && <ErrorToast error={actionError} onClose={() => setActionError(null)} />}
 
+        {/*
         <ComboVerifier
           tournamentId={tournamentId}
           playerAId={match.playerA.id} playerAName={match.playerA.name}
           playerBId={match.playerB.id} playerBName={match.playerB.name}
           defaultExpanded compact
         />
+        */}
 
         {/* Scoreboard */}
         <div className="card card-cyan p-4 sm:p-6">
@@ -232,7 +250,20 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
           </div>
         )}
 
-        {!match.isFinished && (
+        {!match.isFinished && !(lockErr || isLockedByOther) && !hasLock && !isAdmin && (
+          <div className="card p-6 text-center space-y-4">
+            <p className="text-gray-300 font-gaming text-sm">Debes tomar el control de la partida para anotar.</p>
+            <button
+              onClick={takeLock}
+              disabled={isSubmitting}
+              className="btn-primary py-3 px-6 font-gaming text-sm"
+            >
+              🔒 Tomar Enfrentamiento
+            </button>
+          </div>
+        )}
+
+        {!match.isFinished && !(lockErr || isLockedByOther) && hasLock && (
           <div className="grid grid-cols-2 gap-2 sm:gap-4">
             {([match.playerA, match.playerB] as Player[]).map((player, idx) => (
               <div key={player.id} className="min-w-0 space-y-1.5 sm:space-y-2">
@@ -247,7 +278,7 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
           </div>
         )}
 
-        {match.history?.length > 0 && (
+        {match.history?.length > 0 && !(lockErr || isLockedByOther) && (hasLock || isAdmin) && (
           <div className="card overflow-hidden">
             <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
               <p className="section-title mb-0">Historial</p>
@@ -275,3 +306,4 @@ export const JudgeMatchControl = ({ tournamentId, matchId, inline = false }: Pro
     </div>
   );
 };
+

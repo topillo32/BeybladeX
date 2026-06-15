@@ -11,7 +11,7 @@ import {
 import { useLockHeartbeat } from "@/hooks/useLockHeartbeat";
 import type { Match, FinishType } from "@/types";
 import { FINISH_TYPES } from "@/types";
-import { ComboVerifier } from "@/components/judge/ComboVerifier";
+// import { ComboVerifier } from "@/components/judge/ComboVerifier";
 
 interface Props {
   match: Match;
@@ -37,9 +37,9 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [comboValidation, setComboValidation] = useState<{ allValid: boolean; hasInvalid: boolean }>({ allValid: false, hasInvalid: false });
+  const [hasLock, setHasLock] = useState(false);
 
-  useLockHeartbeat(open, tournamentId, m.id, callerUid, !!isAdmin);
+  useLockHeartbeat(hasLock, tournamentId, m.id, callerUid);
 
   const winner = m.isFinished ? (m.winnerId === m.playerA.id ? m.playerA : m.playerB) : null;
   const canScore = editable && (!judgeId || callerUid === judgeId || isAdmin);
@@ -63,31 +63,42 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
     m.lockedAt && (Date.now() - m.lockedAt) < LOCK_TTL_MS
   );
 
-  const openModal = async () => {
+  const openModal = () => {
     if (phaseLocked || !callerUid) return;
-    try {
-      await lockMatch(tournamentId, m.id, callerUid, !!isAdmin);
-      setOpen(true);
-      setError(null);
-    } catch (e: any) {
-      if (e.message === "LOCKED") setError("Otro juez ya tiene esta partida abierta. Espera a que la cierre.");
-      else if (e.message === "NOT_JUDGE") setError("No eres el juez asignado a este grupo.");
-      else setError("No se pudo abrir la partida.");
-    }
+    setOpen(true);
+    setError(null);
   };
 
   const closeModal = () => {
     setOpen(false);
     setError(null);
-    if (callerUid) void unlockMatch(tournamentId, m.id, callerUid);
+    if (hasLock && callerUid) void unlockMatch(tournamentId, m.id, callerUid);
+    setHasLock(false);
+  };
+
+  const takeLock = async () => {
+    if (!callerUid) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await lockMatch(tournamentId, m.id, callerUid, !!isAdmin);
+      setHasLock(true);
+    } catch (e: any) {
+      if (e.message === "LOCKED") setError("Otro juez ya tiene esta partida abierta. Espera a que la cierre.");
+      else if (e.message === "NOT_JUDGE") setError("No eres el juez asignado a este grupo.");
+      else setError("No se pudo tomar la partida.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const score = async (playerId: string, ft: FinishType) => {
     if (submitting || m.isFinished || !callerUid) return;
-    if (comboValidation.hasInvalid) { setError("Hay combos inválidos. Resuelve la verificación antes de anotar."); return; }
+    // if (comboValidation.hasInvalid) { setError("Hay combos inválidos. Resuelve la verificación antes de anotar."); return; }
     setSubmitting(true);
     setError(null);
     try {
+
       await updateMatchScore(tournamentId, m.id, playerId, ft, callerUid, !!isAdmin, createScoreEventId());
     } catch (e: any) {
       setError(
@@ -214,6 +225,7 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
 
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain touch-pan-y px-4 pb-6 sm:px-6 sm:pb-6 [scrollbar-gutter:stable] space-y-4">
 
+            {/*
             {editable && (
               <ComboVerifier
                 tournamentId={tournamentId}
@@ -230,6 +242,7 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
                 ⚠ Combos inválidos — no se puede anotar hasta resolver
               </div>
             )}
+            */}
 
             <div className="sm:hidden space-y-2">
               <div className="flex items-baseline justify-center gap-3 font-gaming font-black">
@@ -265,7 +278,20 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
               </div>
             )}
 
-            {canScore && !m.isFinished && !phaseLocked && (
+            {canScore && !m.isFinished && !phaseLocked && !hasLock && !isAdmin && (
+              <div className="card p-6 text-center space-y-4">
+                <p className="text-gray-300 font-gaming text-sm">Debes tomar el control de la partida para anotar.</p>
+                <button
+                  onClick={takeLock}
+                  disabled={submitting || isLockedByOther}
+                  className="btn-primary py-3 px-6 font-gaming text-sm w-full"
+                >
+                  🔒 Tomar Enfrentamiento
+                </button>
+              </div>
+            )}
+
+            {canScore && !m.isFinished && !phaseLocked && (hasLock || isAdmin) && (
               <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 {([m.playerA, m.playerB] as const).map((player, idx) => (
                   <div key={player.id} className="min-w-0 space-y-1.5 sm:space-y-2">
@@ -277,7 +303,7 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
                         key={ft}
                         type="button"
                         onClick={() => score(player.id, ft)}
-                        disabled={submitting || comboValidation.hasInvalid}
+                        disabled={submitting}
                         className={`w-full touch-manipulation rounded-lg border py-2 text-center transition-all active:scale-[0.98] disabled:opacity-40 sm:rounded-xl sm:py-3 ${FINISH_STYLES[ft]}`}
                       >
                         <span className="block font-gaming text-[10px] tracking-wider opacity-75 sm:text-xs sm:tracking-widest leading-tight">{FINISH_TYPES[ft].name}</span>
@@ -293,7 +319,7 @@ export const MatchCard = ({ match: m, editable = false, onDelete, tournamentId, 
               <p className="text-center text-xs text-gray-500 font-gaming">🔒 Solo el juez puede anotar</p>
             )}
 
-            {m.history?.length > 0 && (
+            {m.history?.length > 0 && (hasLock || isAdmin) && (
               <div className="card overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 px-3 py-2 sm:px-4 sm:py-2.5">
                   <p className="section-title mb-0 text-xs">Historial</p>

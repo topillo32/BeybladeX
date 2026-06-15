@@ -1,1 +1,0 @@
-"use strict";exports.id=758,exports.ids=[758],exports.modules={5758:(e,o,t)=>{t.d(o,{createComboHistory:()=>i});var s=t(76),r=t(1660);let d=(0,s.collection)(r.db,"comboHistory"),i=async e=>(await (0,s.addDoc)(d,{...e,changedAt:(0,s.serverTimestamp)()})).id}};

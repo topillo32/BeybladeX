@@ -389,12 +389,10 @@ export const undoLastScore = async (
     const data = snap.data() as Omit<Match, "id">;
     if (!data.history?.length) return;
 
-    if (!isAdmin) {
-      if (!callerUid) throw new Error("AUTH_REQUIRED");
-      const nowU = Date.now();
-      if (!data.lockedBy || data.lockedBy !== callerUid) throw new Error("LOCK_REQUIRED");
-      if (data.lockedAt && nowU - data.lockedAt >= LOCK_TTL_MS) throw new Error("LOCK_EXPIRED");
-    }
+    if (!callerUid) throw new Error("AUTH_REQUIRED");
+    const nowU = Date.now();
+    if (!data.lockedBy || data.lockedBy !== callerUid) throw new Error("LOCK_REQUIRED");
+    if (data.lockedAt && nowU - data.lockedAt >= LOCK_TTL_MS) throw new Error("LOCK_EXPIRED");
 
     // Verificar que el torneo no haya avanzado de fase
     const { getDoc: gd, getDocs: gds, collection: col, query: q, where: w } = await import("firebase/firestore");

@@ -58,13 +58,27 @@ export const createPlayer = async (name: string, tournamentId?: string) => {
   // Prevent duplicate names (case-insensitive)
   const existing = await getDocs(query(col, where("nameLower", "==", nameLower)));
   if (!existing.empty) throw new Error(`Ya existe un jugador con el nombre "${name.trim()}".`);
-  await addDoc(col, {
+  const docRef = await addDoc(col, {
     name: name.trim(),
     nameLower,
     tournamentIds: tournamentId ? [tournamentId] : [],
     pendingTournamentIds: [],
     createdAt: serverTimestamp(),
   });
+  return docRef.id;
+};
+
+export const createParche = async (tournamentId: string) => {
+  const shortId = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const name = `BYE-${shortId}`;
+  const docRef = await addDoc(col, {
+    name,
+    nameLower: name.toLowerCase(),
+    tournamentIds: [tournamentId],
+    pendingTournamentIds: [],
+    createdAt: serverTimestamp(),
+  });
+  return { id: docRef.id, name };
 };
 
 export const updatePlayer = async (id: string, name: string) =>
