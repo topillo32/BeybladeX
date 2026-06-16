@@ -13,14 +13,6 @@
     "id": "services\\groupService.ts -> firebase/firestore",
     "files": []
   },
-  "services\\matchService.ts -> ./judgeService": {
-    "id": "services\\matchService.ts -> ./judgeService",
-    "files": []
-  },
-  "services\\matchService.ts -> firebase/firestore": {
-    "id": "services\\matchService.ts -> firebase/firestore",
-    "files": []
-  },
   "services\\playerService.ts -> @/services/groupService": {
     "id": "services\\playerService.ts -> @/services/groupService",
     "files": [

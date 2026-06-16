@@ -23,6 +23,7 @@ export const Sidebar = () => {
     { href: "/leagues",     label: t("leagues"),     icon: "🏅" },
     { href: "/mi-staff",    label: "Mi Staff",        icon: "👥" },
     { href: "/communities", label: "Comunidades",    icon: "🏘️" },
+    { href: "/intercommunal", label: "Intercomunal", icon: "🌐" },
     { href: "/players",     label: t("players"),     icon: "👤" },
     // { href: "/parts",       label: "Piezas",         icon: "⚙️" },
     { href: "/users",       label: t("users"),       icon: "🛡️" },

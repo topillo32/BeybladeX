@@ -164,3 +164,5 @@ export const TOURNAMENT_STEPS: { status: TournamentStatus; label: string; icon: 
   { status: "KNOCKOUT",     label: "Knockout",     icon: "⚔️" },
   { status: "FINISHED",     label: "Finished",     icon: "🏆" },
 ];
+
+export * from "./intercommunal";

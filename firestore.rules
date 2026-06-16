@@ -168,5 +168,31 @@ service cloud.firestore {
           || (role() == "staff" && hasCommunity(tournamentCommunityId(tournamentId)));
       }
     }
+
+    // ── Intercommunal (Módulo Aislado) ────────────────────────────────────────
+    match /intercommunal_tournaments/{docId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /intercommunal_teams/{docId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /intercommunal_members/{docId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /intercommunal_groups/{docId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /intercommunal_matches/{docId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /intercommunal_team_matches/{docId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
   }
 }
